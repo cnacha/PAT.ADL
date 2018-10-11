@@ -1,0 +1,176 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="..\packages\Antlr4.CodeGenerator.4.6.5\build\Antlr4.CodeGenerator.props" Condition="Exists('..\packages\Antlr4.CodeGenerator.4.6.5\build\Antlr4.CodeGenerator.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProductVersion>8.0.30703</ProductVersion>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{F570A7C6-276B-4EA2-8BF1-2855C91A066D}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>PAT.ADL</RootNamespace>
+    <AssemblyName>PAT.Module.ADL</AssemblyName>
+    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <NuGetPackageImportStamp>
+    </NuGetPackageImportStamp>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="Antlr3.Runtime, Version=3.2.0.6288, Culture=neutral, PublicKeyToken=3a9cab8f8d22bfb7, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>C:\Program Files (x86)\Process Analysis Toolkit\Process Analysis Toolkit 3.5.1\Antlr3.Runtime.dll</HintPath>
+    </Reference>
+    <Reference Include="Antlr4.Runtime, Version=4.6.0.0, Culture=neutral, PublicKeyToken=09abb75b9ed49849, processorArchitecture=MSIL">
+      <HintPath>..\packages\Antlr4.Runtime.4.6.5\lib\net40-client\Antlr4.Runtime.dll</HintPath>
+    </Reference>
+    <Reference Include="PAT.Common, Version=3.4.4.18487, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>C:\Program Files (x86)\Process Analysis Toolkit\Process Analysis Toolkit 3.5.1\PAT.Common.dll</HintPath>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Assertions\DataStore.cs" />
+    <Compile Include="LTS\ADL Parser\ADLVisitor.cs" />
+    <Compile Include="LTS\ADL Parser\Assertion.cs" />
+    <Compile Include="LTS\ADL Parser\Attachment.cs" />
+    <Compile Include="LTS\ADL Parser\Linkage.cs" />
+    <Compile Include="LTS\ADL Parser\SysChannel.cs" />
+    <Compile Include="LTS\ADL Parser\Component.cs" />
+    <Compile Include="LTS\ADL Parser\Connector.cs" />
+    <Compile Include="LTS\ADL Parser\ConfigDeclaration.cs" />
+    <Compile Include="LTS\ADL Parser\CSPGenerator.cs" />
+    <Compile Include="LTS\CSP Processes\Definition.cs" />
+    <Compile Include="LTS\CSP Processes\DefinitionRef.cs" />
+    <Compile Include="LTS\ADL Parser\SysEvent.cs" />
+    <Compile Include="LTS\ADL Parser\Feature.cs" />
+    <Compile Include="LTS\ADL Parser\SysProcess.cs" />
+    <Compile Include="LTS\ADL Parser\SystemConfig.cs" />
+    <Compile Include="LTS\CSP Processes\Assertion.cs" />
+    <Compile Include="LTS\CSP Processes\AtomicProcess.cs" />
+    <Compile Include="LTS\CSP Processes\CaseProcess.cs" />
+    <Compile Include="LTS\CSP Processes\ChannelInput.cs" />
+    <Compile Include="LTS\CSP Processes\ChannelInputDataOperation.cs" />
+    <Compile Include="LTS\CSP Processes\ChannelInputGuarded.cs" />
+    <Compile Include="LTS\CSP Processes\ChannelInputGuardedDataOperation.cs" />
+    <Compile Include="LTS\CSP Processes\ChannelOutput.cs" />
+    <Compile Include="LTS\CSP Processes\ChannelOutputDataOperation.cs" />
+    <Compile Include="LTS\CSP Processes\ConditionalChoice.cs" />
+    <Compile Include="LTS\CSP Processes\ConditionalChoiceAtomic.cs" />
+    <Compile Include="LTS\CSP Processes\ConditionalChoiceBlocking.cs" />
+    <Compile Include="LTS\CSP Processes\CSPDataStore.cs" />
+    <Compile Include="LTS\CSP Processes\CSPProcess.cs" />
+    <Compile Include="LTS\CSP Processes\DataOperationPrefix.cs" />
+    <Compile Include="LTS\CSP Processes\EventPrefix.cs" />
+    <Compile Include="LTS\CSP Processes\GuardProcess.cs" />
+    <Compile Include="LTS\CSP Processes\Hiding.cs" />
+    <Compile Include="LTS\CSP Processes\IndexChoice.cs" />
+    <Compile Include="LTS\CSP Processes\IndexedProcess.cs" />
+    <Compile Include="LTS\CSP Processes\IndexExternalChoice.cs" />
+    <Compile Include="LTS\CSP Processes\IndexInterleave.cs" />
+    <Compile Include="LTS\CSP Processes\IndexInterleaveAbstract.cs" />
+    <Compile Include="LTS\CSP Processes\IndexInternalChoice.cs" />
+    <Compile Include="LTS\CSP Processes\IndexParallel.cs" />
+    <Compile Include="LTS\CSP Processes\Interrupt.cs" />
+    <Compile Include="LTS\CSP Processes\Sequence.cs" />
+    <Compile Include="LTS\CSP Processes\Skip.cs" />
+    <Compile Include="LTS\CSP Processes\Stop.cs" />
+    <Compile Include="Ultility\Ultility.cs" />
+    <Compile Include="Assertions\Assertion.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Assertions\ADLAssertionDeadLock.cs" />
+    <Compile Include="ModuleFacade.cs" />
+    <Compile Include="Assertions\ADLAssertionLTL.cs" />
+    <Compile Include="LTS\Process.cs" />
+    <Compile Include="LTS\Configuration.cs" />
+    <Compile Include="LTS\ConfigurationWithChannelData.cs" />
+    <Compile Include="LTS\Specification.cs" />
+    <Content Include="Syntax.xshd">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <SubType>Designer</SubType>
+    </Content>
+    <EmbeddedResource Include="Whistle-512.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <BootstrapperPackage Include="Microsoft.Net.Client.3.5">
+      <Visible>False</Visible>
+      <ProductName>.NET Framework 3.5 SP1 Client Profile</ProductName>
+      <Install>false</Install>
+    </BootstrapperPackage>
+    <BootstrapperPackage Include="Microsoft.Net.Framework.2.0">
+      <Visible>False</Visible>
+      <ProductName>.NET Framework 2.0 %28x86%29</ProductName>
+      <Install>true</Install>
+    </BootstrapperPackage>
+    <BootstrapperPackage Include="Microsoft.Net.Framework.3.0">
+      <Visible>False</Visible>
+      <ProductName>.NET Framework 3.0 %28x86%29</ProductName>
+      <Install>false</Install>
+    </BootstrapperPackage>
+    <BootstrapperPackage Include="Microsoft.Net.Framework.3.5">
+      <Visible>False</Visible>
+      <ProductName>.NET Framework 3.5</ProductName>
+      <Install>false</Install>
+    </BootstrapperPackage>
+    <BootstrapperPackage Include="Microsoft.Net.Framework.3.5.SP1">
+      <Visible>False</Visible>
+      <ProductName>.NET Framework 3.5 SP1</ProductName>
+      <Install>false</Install>
+    </BootstrapperPackage>
+  </ItemGroup>
+  <ItemGroup>
+    <Antlr4 Include="LTS\ADL Parser\ADL.g4">
+      <Generator>MSBuild:Compile</Generator>
+      <CustomToolNamespace>PAT.ADL.LTS.ADL_Parser</CustomToolNamespace>
+    </Antlr4>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+  <PropertyGroup>
+    <PostBuildEvent>
+    </PostBuildEvent>
+  </PropertyGroup>
+  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
+    <PropertyGroup>
+      <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
+    </PropertyGroup>
+    <Error Condition="!Exists('..\packages\Antlr4.CodeGenerator.4.6.5\build\Antlr4.CodeGenerator.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Antlr4.CodeGenerator.4.6.5\build\Antlr4.CodeGenerator.props'))" />
+    <Error Condition="!Exists('..\packages\Antlr4.CodeGenerator.4.6.5\build\Antlr4.CodeGenerator.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Antlr4.CodeGenerator.4.6.5\build\Antlr4.CodeGenerator.targets'))" />
+  </Target>
+  <Import Project="..\packages\Antlr4.CodeGenerator.4.6.5\build\Antlr4.CodeGenerator.targets" Condition="Exists('..\packages\Antlr4.CodeGenerator.4.6.5\build\Antlr4.CodeGenerator.targets')" />
+</Project>
