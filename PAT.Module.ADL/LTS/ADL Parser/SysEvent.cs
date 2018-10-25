@@ -5,6 +5,7 @@ using System.Text;
 
 namespace ADLParser.Classes
 {
+    [Serializable]
     public class SysEvent
     {
         public String Name;

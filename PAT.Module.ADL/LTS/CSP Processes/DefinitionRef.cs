@@ -40,7 +40,7 @@ namespace PAT.ADL.LTS
 
         public Process GetProcess(Valuation global)
         {
-            Console.WriteLine("GetProcess for " + this.Name +" Def:"+this.Def);
+          //  Console.WriteLine("GetProcess for " + this.Name +" Def:"+this.Def);
             Expression[] newArgs = new Expression[Args.Length];
             try { 
             //instance String has all information about the argument value,  which is used for storing the process of definition into the DefinitionInstanceDatabase
@@ -74,7 +74,7 @@ namespace PAT.ADL.LTS
                 if (newArgs[i] is IntConstant)
                 {
                     int val = (newArgs[i] as IntConstant).Value;
-                        Console.WriteLine("   getting param "+i+" : "+ Def.Parameters);
+                    //    Console.WriteLine("   getting param "+i+" : "+ Def.Parameters);
                     string x = Def.Parameters[i];
                     if (Def.ParameterLowerBound.ContainsKey(x))
                     {
@@ -131,20 +131,20 @@ namespace PAT.ADL.LTS
 
                 ProcExpr.ProcessID = ProcessID;
                 DataStore.DataManager.DefinitionInstanceDatabase.Add(instanceString, ProcExpr);
-                    Console.WriteLine("     ProcExpr: " + ProcExpr);
+              //      Console.WriteLine("     ProcExpr: " + ProcExpr);
                 return ProcExpr;
             }
             } catch(Exception e)
             {
-                Console.WriteLine(e.ToString());
+                //Console.WriteLine(e.ToString());
                 throw e;
             }
         }
 
         public override void MoveOneStep(Valuation GlobalEnv, List<Configuration> list)
         {
-            Console.WriteLine("MoveOneStep");
-            Console.WriteLine("    gloenv " + GlobalEnv +"#");
+        //    Console.WriteLine("MoveOneStep");
+      //      Console.WriteLine("    gloenv " + GlobalEnv +"#");
             GetProcess(GlobalEnv).MoveOneStep(GlobalEnv, list);
         }
 
@@ -297,7 +297,7 @@ namespace PAT.ADL.LTS
 
         public override List<string> GetGlobalVariables()
         {
-            Console.WriteLine("Def :"+ Def);
+            // Console.WriteLine("Def :"+ Def);
             List<string> vars = Def.GlobalVars;
             foreach (Expression expression in Args)
             {
@@ -315,7 +315,7 @@ namespace PAT.ADL.LTS
         {
             Expression[] newArgs = new Expression[Args.Length];
             DefinitionRef newRef = null;
-           Console.WriteLine("clearing constant for " + this.Name +" Def"+Def);
+          // Console.WriteLine("clearing constant for " + this.Name +" Def"+Def);
             try { 
             for (int i = 0; i < Args.Length; i++)
             {

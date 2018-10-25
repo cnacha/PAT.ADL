@@ -4,12 +4,15 @@ using System.Text;
 
 namespace ADLParser.Classes
 {
+    [Serializable]
     public class SysProcess: SysEvent
     {
         public enum Operation
         {
             Interleave,
             Choice,
+            Embed,
+            Parallel
         }
         public string Super;
         public SysProcess next;

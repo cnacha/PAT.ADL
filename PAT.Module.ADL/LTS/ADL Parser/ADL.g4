@@ -1,16 +1,17 @@
 grammar ADL;
 
 
-statement : archelement | assertion;
-archelement : (component | connector | system ) '{' feature (feature*)?  '}' NEWLINE;
-feature : ((port | role ) '('paramdefs ')' ASG sequence NEWLINE)   
+statement : archelement | assertion | LINE_COMMENT;
+archelement : (component | connector | system ) '{' NEWLINE? feature (feature*)?  '}' NEWLINE;
+feature : ((port | role ) '('paramdefs ')' ASG sequence SEMICOLON NEWLINE? )   
         | glue 
-		| define 
-		| attach
-		| link;
+		| declare 
+		| attach;
 
-assertion: 'assert' ID verification NEWLINE;
-verification: (DEADLOCKFREE | LTL);
+assertion: 'assert' verification SEMICOLON NEWLINE;
+verification: ID ( DEADLOCKFREE | CIRCULARFREE | BOTTLENECKFREE | reachexpr  | ltlexpr );
+ltlexpr: '|=' (( '(' | ')' | '[]' | '<>' | '!' | '?' | '&&' | '||' | '->' | '<->' | '/\\' | '\\/' | '.' | ID ))*;
+reachexpr: REACHES ID;
 
 system : 'system' ID;
 component : 'component' ID;
@@ -20,11 +21,10 @@ port : 'port' ID;
 role : 'role' ID;
 
 glue : 'glue' process (processexpr*)?;
-processexpr :  INTERLEAVE process;
+processexpr :  (INTERLEAVE | EMBED | CHOICE | PARALLEL) process;
 
-define : 'define' ID ASG ID;
-attach : 'attach' process ASG process (processexpr*)?;
-link : 'link' process ASG process;
+declare : 'declare' ID ASG ID SEMICOLON NEWLINE?;
+attach : 'attach' process ASG process (processexpr*)? SEMICOLON NEWLINE?;
 //attach : 'attach' ID '.' process ASG ID '.' process;
 
 
@@ -38,13 +38,20 @@ sequence :  event event*;
 paramdefs:  (ID COMMA)* ID ;
 
 NEWLINE  : ('\r'? '\n' | '\r')+ ;
+DEADLOCKFREE : 'deadlockfree';
+CIRCULARFREE : 'circularfree';
+BOTTLENECKFREE : 'bottleneckfree';
+REACHES : 'reaches';
+LTL : 'LTL';
 ID : ([a-zA-Z_] | [0-9_])* ;
+
 WHITESPACE : (' ' | '\t')+ -> skip;
 SEMICOLON : ';';
 COMMA : ',';
 ASG : '=';
 TRANSIT : '->';
 INTERLEAVE : '|||';
+PARALLEL : '||';
+EMBED : '<*>';
 CHOICE : '[]';
-DEADLOCKFREE : 'deadlockfree';
-LTL : 'LTL';
+LINE_COMMENT : '//' ~('\n'|'\r')* '\r'? '\n';

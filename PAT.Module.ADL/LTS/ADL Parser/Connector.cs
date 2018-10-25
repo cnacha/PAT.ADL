@@ -5,7 +5,8 @@ using System.Text;
 
 namespace ADLParser.Classes
 {
-    public class Connector
+    [Serializable]
+    public class Connector 
     {
         public string Name;
         public String ConfigName;
@@ -53,5 +54,6 @@ namespace ADLParser.Classes
             result.Append("}");
             return result.ToString();
         }
+
     }
 }

@@ -37,9 +37,9 @@
         <End>&apos;</End>
       </Span>
 
-      <Span name = "Assertion" rule = "AssertionRuleSet" bold = "true" italic = "false" color = "Black" stopateol = "false">
-        <Begin color="Blue">assert</Begin>
-        <End color="Black">;</End>
+      <Span name = "Assertion" rule = "AssertionRuleSet" bold = "false" italic = "false" color = "Black" stopateol = "false">
+        <Begin color="Blue"  >assert</Begin>
+        <End color="Black" >;</End>
       </Span>
 
       <MarkPrevious bold = "true" italic = "false" color = "MidnightBlue">(</MarkPrevious>
@@ -103,10 +103,15 @@
         <Key word =  "port" description="Port definition" />
         <Key word =  "role" description="Role definition" />
         <Key word =  "attach" description="attach definition" />
+        <Key word =  "declare" description="declare definition" />
         <Key word =  "glue" description="glue definition" />
-         <Key word =  "link" description="glue definition" />
+        <Key word =  "link" description="glue definition" />
+      
       </KeyWords>
-      <KeyWords name ="CSP Process" bold="true" italic = "false" color = "MidnightBlue">
+      <KeyWords name ="ADL State Properties" bold="false" italic = "true" color = "MidnightBlue">
+        <Key word =  "process" description="Process state identification" />
+      </KeyWords>
+      <KeyWords name ="CSP Process" bold="true" italic = "false" color = "Blue">
         <Key word =  "Skip" description="Skip process terminates." />
         <Key word =  "Stop" description="Stop process deadlocks." />
       </KeyWords>
@@ -159,6 +164,8 @@
         <Key word =  "assert" description="assert a model satisfies a propery." />
         <Key word =  "define" description="define a proposition or a constant."/>
         <Key word =  "deadlockfree" description="Deadlockfree checking: #assert P() deadlockfree;"/>
+        <Key word =  "circularfree" description="Circularfree checking: #assert P() circularfree;"/>
+        <Key word =  "bottleneckfree" description="Bottleneckfree checking: #assert P() bottleneckfree;"/>
         <Key word =  "divergencefree" description="Divergencefree checking: #assert P() deadlockfree;"/>
         <Key word =  "deterministic" description="Deterministic checking: #assert P() deterministic; If a process is deterministic, then for any state, there is no two out-going transitions leading to different states but with the same event."/>
         <Key word =  "nonterminating" description="Nonterminating checking: #assert P() nonterminating;"/>

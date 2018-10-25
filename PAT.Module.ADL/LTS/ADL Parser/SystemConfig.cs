@@ -7,7 +7,7 @@ namespace ADLParser.Classes
     class SystemConfig
     {
         public String Name;
-        public List<ConfigDeclaration> defineList;
+        public List<ConfigDeclaration> declareList;
         public List<Attachment> attachList;
         public List<Linkage> linkList;
         public SysProcess Glue;
@@ -15,7 +15,7 @@ namespace ADLParser.Classes
         public SystemConfig(String name)
         {
             Name = name;
-            defineList = new List<ConfigDeclaration>();
+            declareList = new List<ConfigDeclaration>();
             attachList = new List<Attachment>();
             linkList = new List<Linkage>();
         }
@@ -37,7 +37,7 @@ namespace ADLParser.Classes
             result.Append("system: {");
             result.AppendLine("Name:" + Name + ",");
             result.AppendLine("define: ");
-            foreach (var o in defineList)
+            foreach (var o in declareList)
                 result.AppendLine(o.ToString());
             result.AppendLine("attach: ");
             foreach (var o in attachList)

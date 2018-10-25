@@ -1,11 +1,10 @@
 ﻿using PAT.Common.Classes.Assertion;
 using PAT.Common.Classes.LTS;
 using PAT.Common.Classes.ModuleInterface;
-using PAT.Common.Classes.SemanticModels.LTS.Assertion;
 using PAT.ADL.LTS;
 
 namespace PAT.ADL.Assertions{
-    public class ADLAssertionDeadLock : AssertionDeadLock
+    public class ADLAssertionDeadLock : AssertionCSPDeadLock
     {
         private DefinitionRef Process;
         public ADLAssertionDeadLock(DefinitionRef processDef) : base()

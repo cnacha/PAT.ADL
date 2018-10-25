@@ -56,10 +56,15 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Assertions\ADLAssertionBottleneck.cs" />
+    <Compile Include="Assertions\ADLAssertionCircular.cs" />
+    <Compile Include="Assertions\ADLAssertionReachability.cs" />
+    <Compile Include="Assertions\AssertionCSPDeadlock.cs" />
     <Compile Include="Assertions\DataStore.cs" />
     <Compile Include="LTS\ADL Parser\ADLVisitor.cs" />
     <Compile Include="LTS\ADL Parser\Assertion.cs" />
     <Compile Include="LTS\ADL Parser\Attachment.cs" />
+    <Compile Include="LTS\ADL Parser\ExtensionMethods.cs" />
     <Compile Include="LTS\ADL Parser\Linkage.cs" />
     <Compile Include="LTS\ADL Parser\SysChannel.cs" />
     <Compile Include="LTS\ADL Parser\Component.cs" />
@@ -151,7 +156,9 @@
     </Antlr4>
   </ItemGroup>
   <ItemGroup>
-    <None Include="packages.config" />
+    <None Include="packages.config">
+      <SubType>Designer</SubType>
+    </None>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

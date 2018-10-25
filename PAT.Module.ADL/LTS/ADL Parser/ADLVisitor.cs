@@ -91,14 +91,38 @@ namespace ADLCompiler
 
         public override object VisitAssertion([NotNull] AssertionContext context)
         {
-            AssertionExpr assert = new AssertionExpr(context.ID().GetText());
+            Console.WriteLine("visit asssertion " + context.verification().ID());
+            AssertionExpr assert = new AssertionExpr(context.verification().ID().GetText());
+            
             if (context.verification().DEADLOCKFREE() != null)
             {
+          
                 assert.Type = AssertionExpr.AssertionType.deadlockfree;
             }
-            else if (context.verification().LTL() != null)
-                assert.Type = AssertionExpr.AssertionType.LTL;
+            else if (context.verification().CIRCULARFREE() != null)
+            {
 
+                assert.Type = AssertionExpr.AssertionType.circularfree;
+            }
+            else if (context.verification().BOTTLENECKFREE() != null)
+            {
+
+                assert.Type = AssertionExpr.AssertionType.bottleneckfree;
+            }
+            else if (context.verification().reachexpr() != null)
+            {
+
+                assert.Type = AssertionExpr.AssertionType.reachability;
+                assert.Expression = context.verification().reachexpr().ID().GetText().Trim();
+                
+            }
+            else if (context.verification().ltlexpr() != null) {
+                String ltlexpr = context.verification().ltlexpr().GetText();
+                assert.Expression = ltlexpr.Substring(ltlexpr.IndexOf("|=")+2);
+                assert.Type = AssertionExpr.AssertionType.LTL;
+               
+            }
+            
             return assert;
         }
 
@@ -132,8 +156,15 @@ namespace ADLCompiler
 
             if (context.sequence() != null)
             {
-         //       Console.WriteLine("    event: " + printEvent(context.sequence().@event()));
-                feature.process.AddRange(this.parseSequence(context.sequence().@event()));
+                //       Console.WriteLine("    event: " + printEvent(context.sequence().@event()));
+                List<SysEvent> events = parseSequence(context.sequence().@event());
+                foreach(var e in events)
+                {
+                    // if it is not a function but an event, concatenate name with role name
+                    if (e is SysProcess && e.Name != feature.Name)
+                        e.Name = feature.Name + "_" +e.Name;
+                }
+                feature.process.AddRange(events);
             }
             // parsing parameter of process Role
             if (context.paramdefs() != null
@@ -150,6 +181,26 @@ namespace ADLCompiler
            
         }
 
+        private SysProcess setOperator(SysProcess proc, ProcessexprContext ctx)
+        {
+            if (ctx.INTERLEAVE() !=null)
+            {
+                proc.operation = SysProcess.Operation.Interleave;
+            } else if (ctx.EMBED() != null)
+            {
+                proc.operation = SysProcess.Operation.Embed;
+            }
+            else if (ctx.CHOICE() != null)
+            {
+                proc.operation = SysProcess.Operation.Choice;
+            }
+            else if (ctx.PARALLEL() != null)
+            {
+                proc.operation = SysProcess.Operation.Parallel;
+            }
+            return proc;
+        }
+
 
         public override object VisitGlue([NotNull] GlueContext context)
         {
@@ -160,13 +211,14 @@ namespace ADLCompiler
             first = procObj;
             foreach (var expr in context.processexpr())
             {
-        //        Console.WriteLine(expr.process().ID());
+                //        Console.WriteLine(expr.process().ID());
                 
                 SysProcess next = (SysProcess)VisitProcess(expr.process());
+                next = setOperator(next, expr);
                 procObj.next = next;
-
                 procObj = next;
                 
+
             }
             return first;
         }
@@ -201,17 +253,18 @@ namespace ADLCompiler
                 FeatureContext[] defines = context.feature();
                 foreach (var ctx in defines)
                 {
-                    // visit define
-                    if (ctx.define() != null)
+                    // visit declare
+                    if (ctx.declare() != null)
                     {
-                        ConfigDeclaration define = (ConfigDeclaration)VisitDefine(ctx.define());
-                        if (define != null)
+                        ConfigDeclaration declare = (ConfigDeclaration)VisitDeclare(ctx.declare());
+                        if (declare != null)
                         {
-                            systemCfg.defineList.Add(define);
+                            systemCfg.declareList.Add(declare);
                         }
 
-                    // visit attach
-                    } else if (ctx.attach()!= null)
+                        // visit attach
+                    }
+                    else if (ctx.attach() != null)
                     {
                         Attachment attach = (Attachment)VisitAttach(ctx.attach());
                         if (attach != null)
@@ -219,16 +272,13 @@ namespace ADLCompiler
                             systemCfg.attachList.Add(attach);
                         }
 
-                    // visit glue
-                    } else if (ctx.glue() != null) {
-                        systemCfg.Glue = (SysProcess)VisitGlue(ctx.glue());
-
-                    // visit link
-                    } else if(ctx.link() != null)
-                    {
-                        systemCfg.linkList.Add((Linkage)VisitLink(ctx.link()));
+                        // visit glue
                     }
-                    
+                    else if (ctx.glue() != null)
+                    {
+                        systemCfg.Glue = (SysProcess)VisitGlue(ctx.glue());
+                    }
+                  
 
                 }
                 // parsing each attach
@@ -236,15 +286,8 @@ namespace ADLCompiler
             return systemCfg;
         }
 
-        public override object VisitLink([NotNull] LinkContext context)
-        {
-            SysProcess leftProc = (SysProcess)VisitProcess(context.process()[0]);
-            SysProcess rightProc = (SysProcess)VisitProcess(context.process()[1]);
-            Linkage link = new Linkage(leftProc, rightProc);
-            return link;
-        }
 
-        public override object VisitDefine([NotNull] DefineContext context)
+        public override object VisitDeclare([NotNull] DeclareContext context)
         {
        //     Console.WriteLine("VisitDefine: "+ context.ID()[0] + "   "+ context.ID()[1]) ;
             ConfigDeclaration declare = new ConfigDeclaration(context.ID()[0].GetText(), context.ID()[1].GetText());
@@ -262,6 +305,7 @@ namespace ADLCompiler
       //          Console.WriteLine(expr.process().ID());
 
                 SysProcess next = (SysProcess)VisitProcess(expr.process());
+                next = setOperator(next, expr);
                 procObj.next = next;
 
                 procObj = next;
@@ -282,7 +326,8 @@ namespace ADLCompiler
                 if (i.process() != null)
                 {
                     // event is process such as proc()
-                    sequence.Add((SysProcess)VisitProcess(i.process()));
+                    SysProcess proc = (SysProcess)VisitProcess(i.process());
+                    sequence.Add(proc);
                 }
                 else if (i.channel() != null)
                 {

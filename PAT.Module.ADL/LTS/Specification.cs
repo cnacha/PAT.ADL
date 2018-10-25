@@ -30,9 +30,10 @@ namespace PAT.ADL.LTS
         public Dictionary<string, ChannelQueue> ChannelDatabase = new Dictionary<string, ChannelQueue>(8);
         public static Dictionary<string, int> ChannelArrayDatabase = new Dictionary<string, int>(8);
         public List<IndexParallel> ParallelDatabase = new List<IndexParallel>(8);
-
+        public Dictionary<string, Expression> DeclarationDatabase = new Dictionary<string, Expression>();
         public Dictionary<string, Configuration> ConfigurationDatabase = new Dictionary<string, Configuration>(16);
-        public Dictionary<string, Connector> connectorDatabase = new Dictionary<string, Connector>(16);
+        public Dictionary<string, Connector> ConnectorDatabase = new Dictionary<string, Connector>();
+        public Dictionary<string, Component> ComponentDatabase = new Dictionary<string, Component>();
         public Dictionary<string, DefinitionRef> GlueProcessDatabase = new Dictionary<string, DefinitionRef>();
 
         public Valuation SpecValuation = new Valuation();
@@ -83,7 +84,7 @@ namespace PAT.ADL.LTS
         /// </summary>
         /// <param name="spec">string input of the model</param>
         /// <param name="option">option for LTL parsing, usually it is an empty string</param>
-        protected virtual void ParseSpec(string spec, string option)
+        protected virtual void ParseSpec(string spec, string options)
         {
             Console.WriteLine("parsing spec... ");
 
@@ -117,13 +118,15 @@ namespace PAT.ADL.LTS
 
                     if (element is Component)
                     {
-                        Console.WriteLine(((Component)element).ToString());
+                        Component comp = (Component)element;
+                        Console.WriteLine(comp.ToString());
+                        ComponentDatabase.Add(comp.Name, comp);
                     }
                     else if (element is Connector)
                     {
                         Connector conn = ((Connector)element);
-
-                        connectorDatabase.Add(conn.Name, conn);
+                        Console.WriteLine(conn.ToString());
+                        ConnectorDatabase.Add(conn.Name, conn);
                     }
                     else if (element is SystemConfig)
                     {
@@ -138,7 +141,7 @@ namespace PAT.ADL.LTS
                 {
                     AssertionExpr assertion = (AssertionExpr)visitor.VisitAssertion((AssertionContext)element);
                     Console.WriteLine(assertion.ToString());
-                    generator.AddAssertion(assertion);
+                    generator.AddAssertion(assertion, options);
                 }
                 else
                     break;

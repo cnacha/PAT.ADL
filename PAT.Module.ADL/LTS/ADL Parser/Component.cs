@@ -5,7 +5,7 @@ using System.Text;
 
 namespace ADLParser.Classes
 {
-    class Component
+    public class Component
     {
         public string Name;
         public List<Feature> portList;

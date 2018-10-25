@@ -10,11 +10,14 @@ namespace ADLParser.Classes
         public enum AssertionType
         {
             deadlockfree,
-            LTL,
+            circularfree,
+            bottleneckfree,
+            reachability,
+            LTL
         }
         public AssertionType Type;
         public string Target;
-        public string LTLexpression;
+        public string Expression;
 
         public AssertionExpr(string target)
         {
@@ -28,7 +31,7 @@ namespace ADLParser.Classes
 
         public override string ToString()
         {
-            return "assertion{type:"+Type+", target:"+Target+",LTLExpr:"+LTLexpression+"}";
+            return "assertion{type:"+Type+", target:"+Target+",LTLExpr:"+Expression+"}";
         }
     }
 }

@@ -5,7 +5,8 @@ using System.Text;
 
 namespace ADLParser.Classes
 {
-    public class Feature
+    [Serializable]
+    public class Feature 
     {
         public String Name;
         public List<String> Params;

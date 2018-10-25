@@ -1,7 +1,9 @@
 ﻿using ADLParser.Classes;
 using PAT.ADL.Assertions;
+using PAT.Common.Classes.BA;
 using PAT.Common.Classes.Expressions.ExpressionClass;
 using PAT.Common.Classes.LTS;
+using PAT.Common.Classes.ModuleInterface;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -17,101 +19,122 @@ namespace PAT.ADL.LTS.ADL_Parser
             this.Spec = spec;
         }
 
+        private void createRoleProcessSpec(Feature role, Feature linkedRole, String eventPrefixStr)
+        {
+            if (Spec.DefinitionDatabase.ContainsKey(role.getName()))
+                return;
+            //Feature role = conn.getRoleByName(roleName);
 
+            // create parameter of role process
+            List<Expression> paramsExpr = new List<Expression>();
+            if (role.Params.Count > 0)
+            {
+                foreach (var param in role.Params)
+                {
+                    paramsExpr.Add(new Variable(param));
+                }
+            }
+            // create role process
+            DefinitionRef process = new DefinitionRef(role.getName(), paramsExpr.ToArray());
+            Process prev = null;
+            Console.WriteLine(role.process.ElementAt(role.process.Count - 1).Name +"===="+ role.getName());
+            if (role.process.ElementAt(role.process.Count - 1).getName() == role.getName())
+            {
+                prev = process;
+            }
+            else if (role.process.ElementAt(role.process.Count - 1).Name.IndexOf("Skip")!=-1)
+            {
+                prev = new Skip();
+            }
+            else if (role.process.ElementAt(role.process.Count - 1).Name.IndexOf("Stop") != -1)
+            {
+                prev = new Stop();
+            }
+            // copy list of event from the role process
+            List<SysEvent> roleProcess = new List<SysEvent>();
+            roleProcess.AddRange(role.process);
+
+            // intercept if there is a link to other role
+            if (linkedRole!=null)
+            {
+                for (int i = 0; i < roleProcess.Count; i++)
+                {
+                    if (roleProcess.ElementAt(i).Name.IndexOf("_process")!=-1)
+
+                    {
+                        // combine process
+                       
+                        if (linkedRole.process.ElementAt(linkedRole.process.Count - 1).Name == linkedRole.Name)
+                            linkedRole.process.RemoveAt(linkedRole.process.Count - 1);
+                        roleProcess.InsertRange(i, linkedRole.process);
+                        break;
+                    }
+                }
+            }
+
+            // construct a sequenc for the role process
+            // start from the second event
+            for (int i = roleProcess.Count - 2; i >= 0; i--)
+            {
+                var sysEvent = roleProcess.ElementAt(i);
+                Process current = null;
+                if (sysEvent is SysProcess)
+                {
+                    // it is event
+                    Console.WriteLine("prev: "+prev);
+                    current = new EventPrefix(new Common.Classes.LTS.Event(eventPrefixStr + "_" + sysEvent.getName()), prev);
+
+                }
+                else if (sysEvent is SysChannel)
+                {
+                    // it is channel
+                    SysChannel channel = (SysChannel)sysEvent;
+                    // parse channel parameters
+                    List<Expression> chparamsExpr = new List<Expression>();
+                    if (channel.Parameters.Count > 0)
+                    {
+                        foreach (var param in channel.Parameters)
+                        {
+                            chparamsExpr.Add(new Variable(param));
+                        }
+                    }
+                    // add channelqueue to database, if still not exists
+                    if (!Spec.ChannelDatabase.ContainsKey(channel.getName()))
+                    {
+                        ChannelQueue queue = new ChannelQueue(1);
+                        Spec.ChannelDatabase.Add(channel.getName(), queue);
+                    }
+                    if (channel.ChannelType == SysChannel.Type.Input)
+                    {
+                        current = new ChannelInput(channel.getName(), null, chparamsExpr.ToArray(), prev);
+                    }
+                    else if (channel.ChannelType == SysChannel.Type.Output)
+                    {
+                        current = new ChannelOutput(channel.getName(), null, chparamsExpr.ToArray(), prev);
+                    }
+                }
+                prev = current;
+            }
+            // create process definition
+            Definition processDef = new Definition(role.getName(), role.Params.ToArray(), prev);
+            process.Def = processDef;
+
+            // add role process to spec
+              Console.WriteLine("............ create role process :" + role.getName());
+            Spec.DefinitionDatabase.Add(role.getName(), processDef);
+
+
+        }
+/*
         private void createConnectorSpec(Connector conn, Linkage linkage, Connector linkageConn)
         {
             foreach (var role in conn.roleList)
             {
-                // create parameter of role process
-                List<Expression> paramsExpr = new List<Expression>();
-                if (role.Params.Count > 0)
-                {
-                    foreach (var param in role.Params)
-                    {
-                        paramsExpr.Add(new Variable(param));
-                    }
-                }
-                // create role process
-                DefinitionRef process = new DefinitionRef(role.getName(), paramsExpr.ToArray());
-                Process prev = null;
-                if (role.process.ElementAt(role.process.Count - 1).getName() == role.getName())
-                {
-                    prev = process;
-                }
-                else if (role.process.ElementAt(role.process.Count - 1).getName() == "skip")
-                {
-                    prev = new Skip();
-                }
-                // copy list of event from the role process
-                List<SysEvent> roleProcess = new List<SysEvent>();
-                roleProcess.AddRange(role.process);
-
-                // intercept if there is a link to other role
-                if (linkage != null && role.Name == linkage.LeftProcess.Name)
-                {
-                    for (int i = 0; i < roleProcess.Count; i++)
-                    {
-                        if (roleProcess.ElementAt(i).Name == "process")
-                        {
-                            // combine process
-                            roleProcess.InsertRange(i, linkageConn.getRoleByName(linkage.RightProcess.Name).process);
-                            break;
-                        }
-                    }
-                }
-
-                // construct a sequenc for the role process
-                // start from the second event
-                for (int i = roleProcess.Count - 2; i >= 0; i--)
-                {
-                    var sysEvent = roleProcess.ElementAt(i);
-                    Process current = null;
-                    if (sysEvent is SysProcess)
-                    {
-                        // it is event
-                        current = new EventPrefix(new Common.Classes.LTS.Event(sysEvent.getName()), prev);
-
-                    }
-                    else if (sysEvent is SysChannel)
-                    {
-                        // it is channel
-                        SysChannel channel = (SysChannel)sysEvent;
-                        // parse channel parameters
-                        List<Expression> chparamsExpr = new List<Expression>();
-                        if (channel.Parameters.Count > 0)
-                        {
-                            foreach (var param in channel.Parameters)
-                            {
-                                chparamsExpr.Add(new Variable(param));
-                            }
-                        }
-                        // add channelqueue to database, if still not exists
-                        if (!Spec.ChannelDatabase.ContainsKey(channel.getName()))
-                        {
-                            ChannelQueue queue = new ChannelQueue(1);
-                            Spec.ChannelDatabase.Add(channel.getName(), queue);
-                        }
-                        if (channel.ChannelType == SysChannel.Type.Input)
-                        {
-                            current = new ChannelInput(channel.getName(), null, chparamsExpr.ToArray(), prev);
-                        }
-                        else if (channel.ChannelType == SysChannel.Type.Output)
-                        {
-                            current = new ChannelOutput(channel.getName(), null, chparamsExpr.ToArray(), prev);
-                        }
-                    }
-                    prev = current;
-                }
-                // create process definition
-                Definition processDef = new Definition(role.getName(), role.Params.ToArray(), prev);
-                process.Def = processDef;
-
-                // add role process to spec
-              //  Console.WriteLine("............ create role process :" + role.getName());
-                Spec.DefinitionDatabase.Add(role.getName(), processDef);
+                createRoleProcessSpec(conn, role.Name, linkage, linkageConn);
 
             }
         }
+        */
         private Expression[] convertParamValues(List<String> str)
         {
             List<Expression> paramsExpr = new List<Expression>();
@@ -126,74 +149,86 @@ namespace PAT.ADL.LTS.ADL_Parser
         {
             Dictionary<string, Connector> connectorInstanceList = new Dictionary<string, Connector>();
             // get connector instance to the dictionary
-            foreach (var define in config.defineList)
+            foreach (var define in config.declareList)
             {
-                Spec.connectorDatabase.TryGetValue(define.RightName, out Connector conn);
+                Spec.ConnectorDatabase.TryGetValue(define.RightName, out Connector conn);
                 if (conn == null)
-                    throw new Exception("At define statement, cannot find connector :"+define.RightName);
+                    throw new Exception("At define statement, cannot find connector :" + define.RightName);
 
-               // Console.WriteLine(".......... define: " + define.LeftName + ", conn:" + conn.Name);
-                connectorInstanceList.Add(define.LeftName, conn);
+                // Console.WriteLine(".......... define: " + define.LeftName + ", conn:" + conn.Name);
+                Connector connInst = conn.DeepClone();
+                connInst.setConfigName(define.LeftName);
+                connectorInstanceList.Add(define.LeftName, connInst);
             }
-            // create define process by connector
-            foreach (var define in config.defineList)
-            {
-                connectorInstanceList.TryGetValue(define.LeftName, out Connector conn);
-                if (conn == null)
-                    throw new Exception("At define statement, cannot find connector instance:" + define.LeftName);
-                Linkage link = config.FindLinkByInstanceName(define.LeftName);
-                Connector linkageConn = null;
-                if (link != null)
-                {
-                    // find linkage connector
-                    connectorInstanceList.TryGetValue(link.RightProcess.Super, out linkageConn);
-                    if (linkageConn == null)
-                        throw new Exception("At link statement, cannot find connector instance:" + link.RightProcess.Super);
-                    linkageConn.setConfigName(link.RightProcess.Super);
-                }
-                // create specification for connector instance
-                //conn.setConfigName(define.LeftName);
-                conn.setConfigName(define.LeftName);
-                createConnectorSpec(conn, link, linkageConn);
-            }
+
             // create attach process 
             //  Dictionary<string, DefinitionRef> attachMap = new Dictionary<string, DefinitionRef>();
             foreach (var attach in config.attachList)
             {
+                if(!Spec.ComponentDatabase.ContainsKey(attach.LeftName) )
+                    throw new Exception("No component " + attach.LeftName + " found");
+
                 SysProcess current = attach.HeadFunction;
+                SysProcess prevProc = null;
+                Feature prevRole = null;
                 DefinitionRef atprocRef = null;
                 Process headprocRef = null;
                 // loop through trail of process of attachment
                 while (current != null)
                 {
                     atprocRef = new DefinitionRef(current.Name + "_" + current.Super, convertParamValues(current.Parameters));
+                    // retrieve connector
+                    connectorInstanceList.TryGetValue(current.Super, out Connector conn);
 
-                    Spec.DefinitionDatabase.TryGetValue(current.Name + "_" + current.Super, out atprocRef.Def);
-                    if (atprocRef.Def == null)
-                        throw new Exception("At attach statement, cannot find " + current.Name + " on " + current.Super);
-                  //  Console.WriteLine("finding role process " + config.Name + "_" + current.Name + ": " + atprocRef.Args);
+                    if (conn == null)
+                        throw new Exception("At attach statement, " + current.Super + " is not defined");
+
+                    //  Console.WriteLine("finding role process " + config.Name + "_" + current.Name + ": " + atprocRef.Args);
+                    Feature role = conn.getRoleByName(current.Name);
                     if (headprocRef != null)
                     {
                         List<Process> coProcs = new List<Process>();
                         coProcs.Add(headprocRef);
-                        coProcs.Add(atprocRef);
+
                         if (current.operation == SysProcess.Operation.Interleave)
                         {
-                            IndexInterleave interleaveProcs = new IndexInterleave(coProcs);
-                            headprocRef = interleaveProcs;
+                           
+                            this.createRoleProcessSpec(role, null, attach.LeftName);
+                            Spec.DefinitionDatabase.TryGetValue(current.Name + "_" + current.Super, out atprocRef.Def);
+                            coProcs.Add(atprocRef);
+                            IndexInterleave procs = new IndexInterleave(coProcs);
+                            headprocRef = procs;
                         }
-                        else if (current.operation == SysProcess.Operation.Choice)
+                        else if(current.operation == SysProcess.Operation.Parallel)
                         {
-                            IndexChoice choiceProcs = new IndexChoice(coProcs);
-                            headprocRef = choiceProcs;
-                        }
 
+                            this.createRoleProcessSpec(role, null, attach.LeftName);
+                            Spec.DefinitionDatabase.TryGetValue(current.Name + "_" + current.Super, out atprocRef.Def);
+                            coProcs.Add(atprocRef);
+                            IndexParallel procs = new IndexParallel(coProcs);
+                            headprocRef = procs;
+                        }
+                    
+                        else if (current.operation == SysProcess.Operation.Embed)
+                        {
+                            atprocRef = new DefinitionRef(prevRole.Name + "_" + prevRole.ConfigName, convertParamValues(prevProc.Parameters));
+                            // create embed 
+                            this.createRoleProcessSpec(prevRole, role.DeepClone<Feature>(), attach.LeftName);
+                            Spec.DefinitionDatabase.TryGetValue(prevRole.getName(), out atprocRef.Def);
+                            headprocRef = atprocRef;
+
+                        }
                     }
                     else
                     {
+                        if(current.next==null || current.next.operation != SysProcess.Operation.Embed)
+                            this.createRoleProcessSpec(role, null, attach.LeftName);
+                        Spec.DefinitionDatabase.TryGetValue(current.Name + "_" + current.Super, out atprocRef.Def);
                         // first sub process
                         headprocRef = atprocRef;
                     }
+                    prevProc = current;
+                    prevRole = conn.getRoleByName(current.Name);
                     current = current.next;
                 }
 
@@ -223,6 +258,11 @@ namespace PAT.ADL.LTS.ADL_Parser
                     {
                         IndexInterleave interleaveProcs = new IndexInterleave(coProcs);
                         head = interleaveProcs;
+                    }
+                    else if (subproc.operation == SysProcess.Operation.Parallel)
+                    {
+                        IndexParallel parallelProcs = new IndexParallel(coProcs);
+                        head = parallelProcs;
                     }
                     else if (subproc.operation == SysProcess.Operation.Choice)
                     {
@@ -254,17 +294,116 @@ namespace PAT.ADL.LTS.ADL_Parser
 
 
 
-        public void AddAssertion(AssertionExpr assertion)
+        public void AddAssertion(AssertionExpr assertion, string options)
         {
             if (assertion.Type == AssertionExpr.AssertionType.deadlockfree)
             {
-                Spec.GlueProcessDatabase.TryGetValue(assertion.Target, out DefinitionRef glueProc);
-                // insert assertion 
-                if (glueProc != null)
-                    Spec.AssertionDatabase.Add(assertion.Target + "-deadlockfree", new ADLAssertionDeadLock(glueProc));
-                else
-                    throw new Exception("Unknown target process for assertion");
+                AssertionBase asrt = createDeadlockAssertion(assertion);
+                Spec.AssertionDatabase.Add(assertion.Target + "-deadlockfree", asrt);
             }
+            else if (assertion.Type == AssertionExpr.AssertionType.circularfree)
+            {
+                AssertionBase asrt = createCircularAssertion(assertion);
+                Spec.AssertionDatabase.Add(assertion.Target + "-circularfree", asrt);
+            }
+            else if (assertion.Type == AssertionExpr.AssertionType.bottleneckfree)
+            {
+                AssertionBase asrt = createBottleneckAssertion(assertion);
+                Spec.AssertionDatabase.Add(assertion.Target + "-bottleneckfree", asrt);
+            }
+            else if (assertion.Type == AssertionExpr.AssertionType.LTL)
+            {
+                AssertionBase asrt = createLTLAssertion(assertion, options);
+                Spec.AssertionDatabase.Add(assertion.Target + " " + assertion.Expression, asrt);
+            } 
+            else if(assertion.Type == AssertionExpr.AssertionType.reachability)
+            {
+                AssertionBase asrt = createReachability(assertion);
+                Spec.AssertionDatabase.Add(assertion.Target + " reaches " + assertion.Expression, asrt);
+            }
+        }
+
+        private AssertionBase createReachability(AssertionExpr assertion)
+        {
+            Spec.GlueProcessDatabase.TryGetValue(assertion.Target, out DefinitionRef glueProc);
+            ADLAssertionReachability assertionCSP = new ADLAssertionReachability(glueProc, assertion.Expression);
+            //Spec.DeclarationDatabase.Add(assertion.Expression, new Expression());
+            // TODO: need to revise this to work 
+            return assertionCSP;
+        }
+
+        private AssertionBase createDeadlockAssertion(AssertionExpr assertion)
+        {
+            Spec.GlueProcessDatabase.TryGetValue(assertion.Target, out DefinitionRef glueProc);
+            // insert assertion 
+            ADLAssertionDeadLock assertionCSP = null;
+            if (glueProc != null) {
+               assertionCSP = new ADLAssertionDeadLock(glueProc);
+            }else
+                throw new Exception("Unknown target process for assertion");
+
+            return assertionCSP;
+        }
+
+        private AssertionBase createBottleneckAssertion(AssertionExpr assertion)
+        {
+            Spec.GlueProcessDatabase.TryGetValue(assertion.Target, out DefinitionRef glueProc);
+            // insert assertion 
+            ADLAssertionBottleneck assertionCSP = null;
+            if (glueProc != null)
+            {
+                assertionCSP = new ADLAssertionBottleneck(glueProc);
+            }
+            else
+                throw new Exception("Unknown target process for assertion");
+
+            return assertionCSP;
+        }
+
+        private AssertionBase createCircularAssertion(AssertionExpr assertion)
+        {
+            Spec.GlueProcessDatabase.TryGetValue(assertion.Target, out DefinitionRef glueProc);
+            // insert assertion 
+            ADLAssertionCircular assertionCSP = null;
+            if (glueProc != null)
+            {
+                assertionCSP = new ADLAssertionCircular(glueProc);
+            }
+            else
+                throw new Exception("Unknown target process for assertion");
+
+            return assertionCSP;
+        }
+
+        private AssertionBase createLTLAssertion(AssertionExpr assertion, string options)
+        {
+            Spec.GlueProcessDatabase.TryGetValue(assertion.Target, out DefinitionRef glueProc);
+            ADLAssertionLTL assertLTL = null;
+            if (glueProc != null)
+            {
+                String ltl = assertion.Expression;
+                assertLTL = new ADLAssertionLTL(glueProc, ltl.Trim());
+                BuchiAutomata PositiveBA = LTL2BA.FormulaToBA(ltl.Trim(), options, null);
+                // default to false for x operator U X V T F R  NOT SUPPORTED for now
+                bool hasXoperator = false;
+                PositiveBA.HasXOperator = hasXoperator;
+                if (!LivenessChecking.isLiveness(PositiveBA))
+                {
+                    assertLTL.SeteBAs(null, PositiveBA);
+                }
+                else
+                {
+                    BuchiAutomata BA = LTL2BA.FormulaToBA("!(" + ltl.Trim() + ")", options, null); //.Replace(".", Ultility.Ultility.DOT_PREFIX)      
+                    BA.HasXOperator = hasXoperator;
+                    assertLTL.SeteBAs(BA, PositiveBA);
+                }
+            }
+            else
+            {
+                throw new Exception("Unknown target process for assertion");
+            }
+
+            return assertLTL;
         }
     }
 }

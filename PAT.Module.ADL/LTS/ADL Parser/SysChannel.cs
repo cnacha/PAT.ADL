@@ -4,6 +4,7 @@ using System.Text;
 
 namespace ADLParser.Classes
 {
+    [Serializable]
     public class SysChannel: SysEvent
     {
         public enum Type
