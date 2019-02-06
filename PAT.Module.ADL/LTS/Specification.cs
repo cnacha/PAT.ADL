@@ -34,7 +34,8 @@ namespace PAT.ADL.LTS
         public Dictionary<string, Configuration> ConfigurationDatabase = new Dictionary<string, Configuration>(16);
         public Dictionary<string, Connector> ConnectorDatabase = new Dictionary<string, Connector>();
         public Dictionary<string, Component> ComponentDatabase = new Dictionary<string, Component>();
-        public Dictionary<string, DefinitionRef> GlueProcessDatabase = new Dictionary<string, DefinitionRef>();
+        public Dictionary<string, DefinitionRef> ExecProcessDatabase = new Dictionary<string, DefinitionRef>();
+        public Dictionary<string, List<string>> CompStateDatabase = new Dictionary<string, List<string>>();
 
         public Valuation SpecValuation = new Valuation();
         public SharedDataObjects SharedData;

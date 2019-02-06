@@ -104,7 +104,7 @@
         <Key word =  "role" description="Role definition" />
         <Key word =  "attach" description="attach definition" />
         <Key word =  "declare" description="declare definition" />
-        <Key word =  "glue" description="glue definition" />
+        <Key word =  "execute" description="glue definition" />
         <Key word =  "link" description="glue definition" />
       
       </KeyWords>
@@ -167,6 +167,10 @@
         <Key word =  "circularfree" description="Circularfree checking: #assert P() circularfree;"/>
         <Key word =  "bottleneckfree" description="Bottleneckfree checking: #assert P() bottleneckfree;"/>
         <Key word =  "divergencefree" description="Divergencefree checking: #assert P() deadlockfree;"/>
+        <Key word =  "ambiguousinterfacefree" description="Ambiguous Interface checking: #assert P() ambiguousinterfacefree;"/>
+        <Key word =  "lavaflowfree" description="Lava Flow checking: #assert P() lavaflowfree;"/>
+        <Key word =  "decompositionfree" description="Poltergeist checking: #assert P() decompositionfree;"/>
+        <Key word =  "poltergeistfree" description="Functional Decomposition checking: #assert P() decompositionfree;"/>
         <Key word =  "deterministic" description="Deterministic checking: #assert P() deterministic; If a process is deterministic, then for any state, there is no two out-going transitions leading to different states but with the same event."/>
         <Key word =  "nonterminating" description="Nonterminating checking: #assert P() nonterminating;"/>
         <Key word =  "reaches" description="Reachability checking: #assert P() reaches goal;"/>

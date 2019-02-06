@@ -33,7 +33,7 @@ namespace ADLParser.Classes
 
         public string getName()
         {
-            return this.Name + "_" + this.ConfigName;
+            return this.ConfigName + "_" + this.Name ;
         }
 
         public override String ToString()

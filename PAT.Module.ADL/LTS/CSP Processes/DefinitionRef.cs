@@ -577,6 +577,8 @@ namespace PAT.ADL.LTS
 #endif
 
         public override bool MustBeAbstracted() {
+            Console.WriteLine("   DefRef:"+this.Name);
+            //return false;
             return Def.MustAbstract;
         }
 

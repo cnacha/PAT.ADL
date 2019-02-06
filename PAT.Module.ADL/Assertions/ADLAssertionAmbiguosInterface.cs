@@ -1,4 +1,5 @@
-﻿using PAT.ADL.LTS;
+﻿using ADLParser.Classes;
+using PAT.ADL.LTS;
 using PAT.Common.Classes.DataStructure;
 using PAT.Common.Classes.ModuleInterface;
 using PAT.Common.Classes.Ultility;
@@ -10,12 +11,13 @@ using System.Text;
 
 namespace PAT.ADL.Assertions
 {
-    public class ADLAssertionAmbiguousInterface: AssertionBase
+    public class ADLAssertionAmbiguosInterface : AssertionBase
     {
         protected bool isNotTerminationTesting;
         private DefinitionRef Process;
+        public Dictionary<string, Component> ComponentDatabase = null;
 
-        public ADLAssertionAmbiguousInterface(DefinitionRef processDef): base()
+        public ADLAssertionAmbiguosInterface(DefinitionRef processDef): base()
         {
             Process = processDef;
         }
@@ -39,7 +41,7 @@ namespace PAT.ADL.Assertions
         public override string ToString()
         {
 
-            return StartingProcess + " bottleneckfree";
+            return StartingProcess + " ambiguous interface";
         }
 
         /// <summary>
@@ -58,11 +60,23 @@ namespace PAT.ADL.Assertions
             }
         }
 
+        private bool IsSingleInterface(string compName)
+        {
+            ComponentDatabase.TryGetValue(compName, out Component comp);
+            if (comp.portList.Count == 1)
+                return true;
+            else
+                return false;
+        }
+        string ambiguousInterface = "";
         public void DFSVerification()
         {
             StringHashTable Visited = new StringHashTable(1048576);
 
             Stack<ConfigurationBase> working = new Stack<ConfigurationBase>(1024);
+
+             Dictionary<string, List<string>> componentInvokeByDict = new Dictionary<string, List<string>>();
+            HashSet<string> singleInterfaceComponentInvoked = new HashSet<string>();
 
             Visited.Add(InitialStep.GetID());
 
@@ -71,8 +85,9 @@ namespace PAT.ADL.Assertions
             depthStack.Push(0);
 
             List<int> depthList = new List<int>(1024);
-            List<String> visitedStates = new List<String>();
-
+            string previousComponent = "";
+            int dataSignature = 0;
+            bool isOnRequest = false;
             do
             {
                 if (CancelRequested)
@@ -89,43 +104,100 @@ namespace PAT.ADL.Assertions
                 {
                     while (depthList[depthList.Count - 1] >= depth)
                     {
-
                         int lastIndex = depthList.Count - 1;
-
                         depthList.RemoveAt(lastIndex);
+
+                        // removing the invoked component from hashset when the counterexample is stepped back.
+                        if (this.VerificationOutput.CounterExampleTrace[lastIndex].Event.IndexOf("!")==-1 && this.VerificationOutput.CounterExampleTrace[lastIndex].Event.IndexOf("?") == -1)
+                        {
+                            string compName = this.VerificationOutput.CounterExampleTrace[lastIndex].Event.Substring(0, this.VerificationOutput.CounterExampleTrace[lastIndex].Event.IndexOf("_"));
+                            if (singleInterfaceComponentInvoked.Contains(compName))
+                            {
+                                Console.WriteLine("     ...removing " + compName);
+                                singleInterfaceComponentInvoked.Remove(compName);
+                            }
+                        }
                         this.VerificationOutput.CounterExampleTrace.RemoveAt(lastIndex);
-                        visitedStates.RemoveAt(lastIndex);
+                        // visitedStates.RemoveAt(lastIndex);
+                        
                     }
                 }
-
+                
                 this.VerificationOutput.CounterExampleTrace.Add(current);
                
                 IEnumerable<ConfigurationBase> list = current.MakeOneMove();
                 this.VerificationOutput.Transitions += list.Count();
-                Console.Write("tracing event: " + current.Event + " " + current.GetID());
-                Console.WriteLine(toStringCounterExample(this.VerificationOutput.CounterExampleTrace)+"\n");
+                 Console.WriteLine("tracing event: " + current.Event + " " + current.GetID()+"||");
+                Console.WriteLine(toStringCounterExample(this.VerificationOutput.CounterExampleTrace));
 
-                // track dpulicate channel input
-                if(current.Event.IndexOf("!")!= -1 && visitedStates.Contains(current.Event.Substring(0, current.Event.IndexOf("!"))) )
+               ///////////////////////////////////////////////////////// Code specific for this smell detection
+                if(current.Event.IndexOf("!")==-1 && current.Event.IndexOf("?") == -1 && current.Event.IndexOf("_")!=-1)
                 {
-                    Console.WriteLine("              bootleneck happen *********");
-                    this.VerificationOutput.VerificationResult = VerificationResultType.INVALID;
-                    this.VerificationOutput.LoopIndex = visitedStates.IndexOf(current.Event.Substring(0, current.Event.IndexOf("!")));
-                    this.VerificationOutput.NoOfStates = Visited.Count;
-                    return;
-                }
-                if(current.Event.IndexOf("!")!=-1 )
-                {
-                    visitedStates.Add(current.Event.Substring(0, current.Event.IndexOf("!")));
+                    // not channel event, it is component event
+                   Console.WriteLine("comp event: "+current.Event);
+                    String currentComponent = current.Event.Substring(0,current.Event.IndexOf("_"));
+                    // check if the previous calling component and current component are not the same, also calling component has single interface 
+                    if (currentComponent != previousComponent && previousComponent != "" && this.IsSingleInterface(previousComponent))
+                    {
+                        // START add to dict for debuging
+                        if (!componentInvokeByDict.ContainsKey(currentComponent))
+                        {
+                            List<string> componentInvokeList = new List<string>();
+                            componentInvokeList.Add(previousComponent);
+                            componentInvokeByDict.Add(currentComponent, componentInvokeList);
 
-                } else if (current.Event.IndexOf("?") != -1)
-                {
-                    visitedStates.Add(current.Event.Substring(0, current.Event.IndexOf("?")));
+                        }
+                        else
+                        {
+                            componentInvokeByDict.TryGetValue(currentComponent, out List<string> componentInvokeList);
+                            if (!componentInvokeList.Contains(previousComponent))
+                            {
+                                componentInvokeList.Add(previousComponent);
+                                
+                                componentInvokeByDict[currentComponent] = componentInvokeList;
+                            }
+                        }
+                        // END add to dict for debuging
+                        // actual checking for ambiguous interface
+                        if (singleInterfaceComponentInvoked.Contains(previousComponent) && isOnRequest)
+                        {
+                            // found ambiguous
+                            Console.WriteLine("              Ambiguous Interface ********* "+ previousComponent +" "+ currentComponent);
+                            this.VerificationOutput.VerificationResult = VerificationResultType.INVALID;
+                            this.VerificationOutput.NoOfStates = Visited.Count;
+                            ambiguousInterface = previousComponent;
+                            PrintComponentInvokeDict(componentInvokeByDict);
+                            return;
+                        }
+                        else if(isOnRequest)
+                        {
+                            singleInterfaceComponentInvoked.Add(previousComponent);
+                        }
+                    }
+                    Console.Write(" compInvoked->");
+                    PrintList(singleInterfaceComponentInvoked);
+
+                    previousComponent = currentComponent ;
                 }
-                else
+                
+                // if it is channel input, capture data signature sending through port
+                if (current.Event.IndexOf("req") != -1)
                 {
-                    visitedStates.Add(current.Event);
+                    isOnRequest = true;
+                 //   dataSignature = Convert.ToInt32( current.Event.Substring(current.Event.IndexOf("?") + 1));
+                } else if(current.Event.IndexOf("res") != -1)
+                {
+                    isOnRequest = false;
                 }
+                   
+                foreach(string str in singleInterfaceComponentInvoked)
+                {
+                    Console.WriteLine(" scompinv "+str);
+                }
+                //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+               // PrintComponentInvokeDict(componentInvokeByDict);
+        
 
                 depthList.Add(depth);
 
@@ -145,14 +217,29 @@ namespace PAT.ADL.Assertions
                             working.Push(step);
                             depthStack.Push(depth + 1);
                         }
-                    }
+                    }   
                 }
 
 
             } while (working.Count > 0);
+            /*
+            // check ambiguous interface which are the components that is invoked by only the same component.
+            Dictionary<string, int> ambiguousInterfaceList = new Dictionary<string, int>();
+            foreach (string comp in componentInvokeByDict.Keys)
+            {
+                componentInvokeByDict.TryGetValue(comp, out List<String> compSource);
+                if(compSource.Count == 1)
+                {
+                    if (!ambiguousInterfaceList.ContainsKey(compSource[0]))
+                    {
+                        ambiguousInterfaceList.
+                    }
+                    
+                }
+            }
+            */
 
-
-            this.VerificationOutput.CounterExampleTrace = null;
+                this.VerificationOutput.CounterExampleTrace = null;
 
             if (MustAbstract)
             {
@@ -166,6 +253,33 @@ namespace PAT.ADL.Assertions
             this.VerificationOutput.NoOfStates = Visited.Count;
         }
 
+        private void PrintList(HashSet<string> set)
+        {
+            foreach(string e in set)
+            {
+                Console.Write(e + " ");
+            }
+            Console.WriteLine();
+        }
+        
+        private void PrintComponentInvokeDict(Dictionary<string, List<string>> dict)
+        {
+            Console.WriteLine("============= ComponentInvokeDict=============");
+            foreach (string comp in dict.Keys)
+            {
+                dict.TryGetValue(comp, out List<String> compSource);
+                StringBuilder sb = new StringBuilder();
+                foreach(string csrc in compSource)
+                {
+                    sb.Append(csrc+", ");
+                }
+                
+                Console.WriteLine(comp + " = ["+sb.ToString()+"]");
+               
+            }
+            Console.WriteLine("===============================================");
+        }
+        
         private Boolean isProcessEventExist(List<String> evtrace, String connectorName)
         {
             foreach(var s in evtrace)
@@ -285,7 +399,7 @@ namespace PAT.ADL.Assertions
                 }
                 else
                 {
-                    sb.AppendLine("The following trace leads to a deadlock situation.");
+                    sb.AppendLine("The following trace leads to a ambiguous interface: "+ ambiguousInterface);
                 }
 
                 VerificationOutput.GetCounterxampleString(sb);

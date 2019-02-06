@@ -25,6 +25,7 @@ namespace PAT.ADL.Assertions
         {
             //initialize the ModelCheckingOptions
             base.Initialize(spec);
+            
 
             Assertion.Initialize(this, Process, spec);
         }
@@ -106,7 +107,7 @@ namespace PAT.ADL.Assertions
                 Console.WriteLine(toStringCounterExample(this.VerificationOutput.CounterExampleTrace)+"\n");
 
                 // track channel input for circular dependency
-                if(current.Event.IndexOf("!")!= -1 && visitedStates.Contains(current.Event) && !isProcessEventExist(visitedStates, current.Event.Substring(current.Event.LastIndexOf("_")+1, (current.Event.IndexOf("!") - current.Event.LastIndexOf("_") - 1))))
+                if (current.Event.IndexOf("!")!= -1 && visitedStates.Contains(current.Event) && !isProcessEventExist(visitedStates, current.Event.Substring(current.Event.LastIndexOf("_") + 1, (current.Event.IndexOf("!") - current.Event.LastIndexOf("_") - 1))))
                 {
                     Console.WriteLine("              circular happen *********");
                     this.VerificationOutput.VerificationResult = VerificationResultType.INVALID;
@@ -115,6 +116,8 @@ namespace PAT.ADL.Assertions
                     
                     return;
                 }
+
+                // add event trace to the list
                 visitedStates.Add(current.Event);
                 
 

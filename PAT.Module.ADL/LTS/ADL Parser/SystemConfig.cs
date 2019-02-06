@@ -10,7 +10,7 @@ namespace ADLParser.Classes
         public List<ConfigDeclaration> declareList;
         public List<Attachment> attachList;
         public List<Linkage> linkList;
-        public SysProcess Glue;
+        public SysProcess Exec;
 
         public SystemConfig(String name)
         {

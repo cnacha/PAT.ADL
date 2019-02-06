@@ -36,6 +36,7 @@ namespace PAT.ADL.Assertions{
 
             MustAbstract = Process.MustBeAbstracted();
 
+
             base.Initialize(spec);
         }
 

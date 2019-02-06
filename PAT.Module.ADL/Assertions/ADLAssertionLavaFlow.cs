@@ -1,4 +1,5 @@
-﻿using PAT.ADL.LTS;
+﻿using ADLParser.Classes;
+using PAT.ADL.LTS;
 using PAT.Common.Classes.DataStructure;
 using PAT.Common.Classes.ModuleInterface;
 using PAT.Common.Classes.Ultility;
@@ -10,12 +11,13 @@ using System.Text;
 
 namespace PAT.ADL.Assertions
 {
-    public class ADLAssertionAmbiguousInterface: AssertionBase
+    public class ADLAssertionLavaFlow : AssertionBase
     {
         protected bool isNotTerminationTesting;
         private DefinitionRef Process;
+        public Dictionary<string, Component> ComponentDatabase = null;
 
-        public ADLAssertionAmbiguousInterface(DefinitionRef processDef): base()
+        public ADLAssertionLavaFlow(DefinitionRef processDef): base()
         {
             Process = processDef;
         }
@@ -39,7 +41,7 @@ namespace PAT.ADL.Assertions
         public override string ToString()
         {
 
-            return StartingProcess + " bottleneckfree";
+            return StartingProcess + " lava flow";
         }
 
         /// <summary>
@@ -58,12 +60,23 @@ namespace PAT.ADL.Assertions
             }
         }
 
+        private bool IsSingleInterface(string compName)
+        {
+            ComponentDatabase.TryGetValue(compName, out Component comp);
+            if (comp.portList.Count == 1)
+                return true;
+            else
+                return false;
+        }
+
+
+        List<string> noInvokeCompList = new List<string>();
         public void DFSVerification()
         {
             StringHashTable Visited = new StringHashTable(1048576);
 
             Stack<ConfigurationBase> working = new Stack<ConfigurationBase>(1024);
-
+            HashSet<string> componentInvokeList = new HashSet<string>();
             Visited.Add(InitialStep.GetID());
 
             working.Push(InitialStep);
@@ -71,8 +84,6 @@ namespace PAT.ADL.Assertions
             depthStack.Push(0);
 
             List<int> depthList = new List<int>(1024);
-            List<String> visitedStates = new List<String>();
-
             do
             {
                 if (CancelRequested)
@@ -89,43 +100,31 @@ namespace PAT.ADL.Assertions
                 {
                     while (depthList[depthList.Count - 1] >= depth)
                     {
-
                         int lastIndex = depthList.Count - 1;
-
                         depthList.RemoveAt(lastIndex);
-                        this.VerificationOutput.CounterExampleTrace.RemoveAt(lastIndex);
-                        visitedStates.RemoveAt(lastIndex);
+                        
                     }
                 }
-
+                
                 this.VerificationOutput.CounterExampleTrace.Add(current);
                
                 IEnumerable<ConfigurationBase> list = current.MakeOneMove();
                 this.VerificationOutput.Transitions += list.Count();
-                Console.Write("tracing event: " + current.Event + " " + current.GetID());
-                Console.WriteLine(toStringCounterExample(this.VerificationOutput.CounterExampleTrace)+"\n");
+                 Console.WriteLine("tracing event: " + current.Event + " " + current.GetID()+"||");
+                Console.WriteLine(toStringCounterExample(this.VerificationOutput.CounterExampleTrace));
 
-                // track dpulicate channel input
-                if(current.Event.IndexOf("!")!= -1 && visitedStates.Contains(current.Event.Substring(0, current.Event.IndexOf("!"))) )
+               ///////////////////////////////////////////////////////// Code specific for this smell detection
+                if(current.Event.IndexOf("!")==-1 && current.Event.IndexOf("?") == -1 && current.Event.IndexOf("_")!=-1)
                 {
-                    Console.WriteLine("              bootleneck happen *********");
-                    this.VerificationOutput.VerificationResult = VerificationResultType.INVALID;
-                    this.VerificationOutput.LoopIndex = visitedStates.IndexOf(current.Event.Substring(0, current.Event.IndexOf("!")));
-                    this.VerificationOutput.NoOfStates = Visited.Count;
-                    return;
+                    // not channel event, it is component event
+                   Console.WriteLine("comp event: "+current.Event);
+                   String currentComponent = current.Event.Substring(0, current.Event.IndexOf("_"));
+                   if(!componentInvokeList.Contains(currentComponent))
+                        componentInvokeList.Add(currentComponent);
+                    
                 }
-                if(current.Event.IndexOf("!")!=-1 )
-                {
-                    visitedStates.Add(current.Event.Substring(0, current.Event.IndexOf("!")));
-
-                } else if (current.Event.IndexOf("?") != -1)
-                {
-                    visitedStates.Add(current.Event.Substring(0, current.Event.IndexOf("?")));
-                }
-                else
-                {
-                    visitedStates.Add(current.Event);
-                }
+ 
+                //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
                 depthList.Add(depth);
 
@@ -145,12 +144,23 @@ namespace PAT.ADL.Assertions
                             working.Push(step);
                             depthStack.Push(depth + 1);
                         }
-                    }
+                    }   
                 }
 
 
             } while (working.Count > 0);
 
+            // check lava flow.
+            List<string> compList = new List<string>(this.ComponentDatabase.Keys);
+            noInvokeCompList = compList.Except(componentInvokeList).ToList<string>();
+            if(noInvokeCompList.Count > 0)
+            {
+                // found lava flow components
+                Console.WriteLine("              lava flow component ********* " + noInvokeCompList.Count);
+                this.VerificationOutput.VerificationResult = VerificationResultType.INVALID;
+                this.VerificationOutput.NoOfStates = Visited.Count;
+                return;
+            }
 
             this.VerificationOutput.CounterExampleTrace = null;
 
@@ -166,6 +176,33 @@ namespace PAT.ADL.Assertions
             this.VerificationOutput.NoOfStates = Visited.Count;
         }
 
+        private void PrintList(HashSet<string> set)
+        {
+            foreach(string e in set)
+            {
+                Console.Write(e + " ");
+            }
+            Console.WriteLine();
+        }
+        
+        private void PrintComponentInvokeDict(Dictionary<string, List<string>> dict)
+        {
+            Console.WriteLine("============= ComponentInvokeDict=============");
+            foreach (string comp in dict.Keys)
+            {
+                dict.TryGetValue(comp, out List<String> compSource);
+                StringBuilder sb = new StringBuilder();
+                foreach(string csrc in compSource)
+                {
+                    sb.Append(csrc+", ");
+                }
+                
+                Console.WriteLine(comp + " = ["+sb.ToString()+"]");
+               
+            }
+            Console.WriteLine("===============================================");
+        }
+        
         private Boolean isProcessEventExist(List<String> evtrace, String connectorName)
         {
             foreach(var s in evtrace)
@@ -285,10 +322,15 @@ namespace PAT.ADL.Assertions
                 }
                 else
                 {
-                    sb.AppendLine("The following trace leads to a deadlock situation.");
+                    sb.Append("The following components are lava flow components:");
+                    foreach (var comp in this.noInvokeCompList)
+                    {
+                        sb.Append(comp+" ");
+                    }
+                    sb.AppendLine("");
                 }
-
                 VerificationOutput.GetCounterxampleString(sb);
+
             }
 
             sb.AppendLine();

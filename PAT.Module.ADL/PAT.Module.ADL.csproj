@@ -56,6 +56,10 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Assertions\ADLAssertionPoltergeist.cs" />
+    <Compile Include="Assertions\ADLAssertionDecomposition.cs" />
+    <Compile Include="Assertions\ADLAssertionLavaFlow.cs" />
+    <Compile Include="Assertions\ADLAssertionAmbiguosInterface.cs" />
     <Compile Include="Assertions\ADLAssertionBottleneck.cs" />
     <Compile Include="Assertions\ADLAssertionCircular.cs" />
     <Compile Include="Assertions\ADLAssertionReachability.cs" />

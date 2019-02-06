@@ -109,6 +109,26 @@ namespace ADLCompiler
 
                 assert.Type = AssertionExpr.AssertionType.bottleneckfree;
             }
+            else if (context.verification().AMBIGUOUSINTERFACEFREE() != null)
+            {
+
+                assert.Type = AssertionExpr.AssertionType.ambiguousinterface;
+            }
+            else if (context.verification().LAVAFLOWFREE() != null)
+            {
+
+                assert.Type = AssertionExpr.AssertionType.lavaflow;
+            }
+            else if (context.verification().DECOMPOSITIONFREE() != null)
+            {
+
+                assert.Type = AssertionExpr.AssertionType.decomposition;
+            }
+            else if (context.verification().POLTERGEISTSFREE() != null)
+            {
+
+                assert.Type = AssertionExpr.AssertionType.poltergeists;
+            }
             else if (context.verification().reachexpr() != null)
             {
 
@@ -118,7 +138,12 @@ namespace ADLCompiler
             }
             else if (context.verification().ltlexpr() != null) {
                 String ltlexpr = context.verification().ltlexpr().GetText();
+                foreach (var token in context.verification().ltlexpr().children)
+                {
+                    Console.WriteLine("     LTL=== "+token.GetText());
+                }
                 assert.Expression = ltlexpr.Substring(ltlexpr.IndexOf("|=")+2);
+                assert.ExpressionContext = context.verification().ltlexpr();
                 assert.Type = AssertionExpr.AssertionType.LTL;
                
             }
@@ -141,10 +166,10 @@ namespace ADLCompiler
          //       Console.WriteLine("Visit role: " + context.role().ID());
                 feature = new Feature(context.role().ID().GetText());
                
-            } else if(context.glue() != null)
+            } else if(context.execute() != null)
             {
              //   Console.WriteLine("Visit glue............. ");
-                feature = new Feature("glue");
+                feature = new Feature("execute");
                // feature.process.Add((SysProcess)VisitGlue(context.glue()));
             }
            
@@ -202,7 +227,7 @@ namespace ADLCompiler
         }
 
 
-        public override object VisitGlue([NotNull] GlueContext context)
+        public override object VisitExecute([NotNull] ExecuteContext context)
         {
             SysProcess prev = null;
             SysProcess first = null;
@@ -274,9 +299,9 @@ namespace ADLCompiler
 
                         // visit glue
                     }
-                    else if (ctx.glue() != null)
+                    else if (ctx.execute() != null)
                     {
-                        systemCfg.Glue = (SysProcess)VisitGlue(ctx.glue());
+                        systemCfg.Exec = (SysProcess)VisitExecute(ctx.execute());
                     }
                   
 

@@ -5,6 +5,7 @@ using PAT.Common.Classes.Expressions.ExpressionClass;
 using PAT.Common.Classes.LTS;
 using PAT.Common.Classes.ModuleInterface;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -19,11 +20,18 @@ namespace PAT.ADL.LTS.ADL_Parser
             this.Spec = spec;
         }
 
-        private void createRoleProcessSpec(Feature role, Feature linkedRole, String eventPrefixStr)
+        private void createRoleProcessSpec(Feature role, Feature linkedRole, String eventPrefixStr, Feature attachedPort, String componentName)
         {
-            if (Spec.DefinitionDatabase.ContainsKey(role.getName()))
+            if (Spec.DefinitionDatabase.ContainsKey(eventPrefixStr +"_"+role.getName()))
                 return;
             //Feature role = conn.getRoleByName(roleName);
+
+            Spec.CompStateDatabase.TryGetValue(componentName, out List<string> statesList);
+            if(statesList == null)
+            {
+                statesList = new List<string>();
+                Spec.CompStateDatabase.Add(componentName, statesList);
+            }
 
             // create parameter of role process
             List<Expression> paramsExpr = new List<Expression>();
@@ -35,7 +43,7 @@ namespace PAT.ADL.LTS.ADL_Parser
                 }
             }
             // create role process
-            DefinitionRef process = new DefinitionRef(role.getName(), paramsExpr.ToArray());
+            DefinitionRef process = new DefinitionRef(eventPrefixStr + "_"+ role.getName(), paramsExpr.ToArray());
             Process prev = null;
             Console.WriteLine(role.process.ElementAt(role.process.Count - 1).Name +"===="+ role.getName());
             if (role.process.ElementAt(role.process.Count - 1).getName() == role.getName())
@@ -72,6 +80,24 @@ namespace PAT.ADL.LTS.ADL_Parser
                 }
             }
 
+            // insert component internal computation
+            if(attachedPort.process.Count != 0)
+            {
+                for (int i = 0; i < roleProcess.Count; i++)
+                {
+                    if (roleProcess.ElementAt(i).Name.IndexOf("_process") != -1)
+
+                    {
+                        if (attachedPort.process.ElementAt(attachedPort.process.Count - 1).Name == attachedPort.Name)
+                            attachedPort.process.RemoveAt(attachedPort.process.Count - 1);
+                        // insert event trail after process event
+                        roleProcess.InsertRange(i+1, attachedPort.process);
+                        break;
+                    }
+                }
+            }
+       
+
             // construct a sequenc for the role process
             // start from the second event
             for (int i = roleProcess.Count - 2; i >= 0; i--)
@@ -81,9 +107,9 @@ namespace PAT.ADL.LTS.ADL_Parser
                 if (sysEvent is SysProcess)
                 {
                     // it is event
-                    Console.WriteLine("prev: "+prev);
                     current = new EventPrefix(new Common.Classes.LTS.Event(eventPrefixStr + "_" + sysEvent.getName()), prev);
-
+                    Console.WriteLine("   ->"+componentName+"  addEvent " + eventPrefixStr + "_" + sysEvent.getName());
+                    statesList.Add(eventPrefixStr + "_" + sysEvent.getName());
                 }
                 else if (sysEvent is SysChannel)
                 {
@@ -115,13 +141,16 @@ namespace PAT.ADL.LTS.ADL_Parser
                 }
                 prev = current;
             }
+            //Spec.CompStateDatabase.Add(componentName, statesList);
+            Spec.CompStateDatabase.TryGetValue(componentName, out List<string> outstatesList);
+            Console.WriteLine("     -> outstate: " + outstatesList.Count);
             // create process definition
-            Definition processDef = new Definition(role.getName(), role.Params.ToArray(), prev);
+            Definition processDef = new Definition(eventPrefixStr + "_" + role.getName(), role.Params.ToArray(), prev);
             process.Def = processDef;
 
             // add role process to spec
               Console.WriteLine("............ create role process :" + role.getName());
-            Spec.DefinitionDatabase.Add(role.getName(), processDef);
+            Spec.DefinitionDatabase.Add(processDef.Name, processDef);
 
 
         }
@@ -167,6 +196,11 @@ namespace PAT.ADL.LTS.ADL_Parser
             {
                 if(!Spec.ComponentDatabase.ContainsKey(attach.LeftName) )
                     throw new Exception("No component " + attach.LeftName + " found");
+                // find component
+                Spec.ComponentDatabase.TryGetValue(attach.LeftName, out Component comp);
+                // find internal process associated to the component
+                Feature port = comp.getPortByName(attach.LeftFunction.Name);
+                Console.WriteLine("attach " + attach.LeftName + "port: "+port.Name+" portproc:" + port.process.Count);
 
                 SysProcess current = attach.HeadFunction;
                 SysProcess prevProc = null;
@@ -174,15 +208,17 @@ namespace PAT.ADL.LTS.ADL_Parser
                 DefinitionRef atprocRef = null;
                 Process headprocRef = null;
                 // loop through trail of process of attachment
+                String process_prefix = attach.LeftName + "_";
                 while (current != null)
                 {
-                    atprocRef = new DefinitionRef(current.Name + "_" + current.Super, convertParamValues(current.Parameters));
+                    
+                    atprocRef = new DefinitionRef(process_prefix + current.Super + "_" + current.Name  , convertParamValues(current.Parameters));
                     // retrieve connector
                     connectorInstanceList.TryGetValue(current.Super, out Connector conn);
 
                     if (conn == null)
                         throw new Exception("At attach statement, " + current.Super + " is not defined");
-
+                   
                     //  Console.WriteLine("finding role process " + config.Name + "_" + current.Name + ": " + atprocRef.Args);
                     Feature role = conn.getRoleByName(current.Name);
                     if (headprocRef != null)
@@ -193,8 +229,8 @@ namespace PAT.ADL.LTS.ADL_Parser
                         if (current.operation == SysProcess.Operation.Interleave)
                         {
                            
-                            this.createRoleProcessSpec(role, null, attach.LeftName);
-                            Spec.DefinitionDatabase.TryGetValue(current.Name + "_" + current.Super, out atprocRef.Def);
+                            this.createRoleProcessSpec(role, null, attach.LeftName, port, comp.Name);
+                            Spec.DefinitionDatabase.TryGetValue(process_prefix + current.Super + "_" + current.Name, out atprocRef.Def);
                             coProcs.Add(atprocRef);
                             IndexInterleave procs = new IndexInterleave(coProcs);
                             headprocRef = procs;
@@ -202,8 +238,8 @@ namespace PAT.ADL.LTS.ADL_Parser
                         else if(current.operation == SysProcess.Operation.Parallel)
                         {
 
-                            this.createRoleProcessSpec(role, null, attach.LeftName);
-                            Spec.DefinitionDatabase.TryGetValue(current.Name + "_" + current.Super, out atprocRef.Def);
+                            this.createRoleProcessSpec(role, null, attach.LeftName, port, comp.Name);
+                            Spec.DefinitionDatabase.TryGetValue(process_prefix + current.Super + "_" + current.Name, out atprocRef.Def);
                             coProcs.Add(atprocRef);
                             IndexParallel procs = new IndexParallel(coProcs);
                             headprocRef = procs;
@@ -211,10 +247,10 @@ namespace PAT.ADL.LTS.ADL_Parser
                     
                         else if (current.operation == SysProcess.Operation.Embed)
                         {
-                            atprocRef = new DefinitionRef(prevRole.Name + "_" + prevRole.ConfigName, convertParamValues(prevProc.Parameters));
+                            atprocRef = new DefinitionRef(process_prefix + prevRole.ConfigName + "_" + prevRole.Name  , convertParamValues(prevProc.Parameters));
                             // create embed 
-                            this.createRoleProcessSpec(prevRole, role.DeepClone<Feature>(), attach.LeftName);
-                            Spec.DefinitionDatabase.TryGetValue(prevRole.getName(), out atprocRef.Def);
+                            this.createRoleProcessSpec(prevRole, role.DeepClone<Feature>(), attach.LeftName, port, comp.Name);
+                            Spec.DefinitionDatabase.TryGetValue(process_prefix + prevRole.getName(), out atprocRef.Def);
                             headprocRef = atprocRef;
 
                         }
@@ -222,8 +258,8 @@ namespace PAT.ADL.LTS.ADL_Parser
                     else
                     {
                         if(current.next==null || current.next.operation != SysProcess.Operation.Embed)
-                            this.createRoleProcessSpec(role, null, attach.LeftName);
-                        Spec.DefinitionDatabase.TryGetValue(current.Name + "_" + current.Super, out atprocRef.Def);
+                            this.createRoleProcessSpec(role, null, attach.LeftName, port, comp.Name);
+                        Spec.DefinitionDatabase.TryGetValue(process_prefix + current.Super + "_" + current.Name, out atprocRef.Def);
                         // first sub process
                         headprocRef = atprocRef;
                     }
@@ -237,17 +273,17 @@ namespace PAT.ADL.LTS.ADL_Parser
                 //   attachMap.Add(atprocRef.Name, atprocRef);
             }
 
-            // find glue statement and create glue process
-            SysProcess subproc = config.Glue;
-            //loop through each function in the glue process
+            // find exec statement and create exec process
+            SysProcess subproc = config.Exec;
+            //loop through each function in the exec process
             Process head = null;
             while (subproc != null)
             {
-                // find attachment process according to what is called in glue process
+                // find attachment process according to what is called in exec process
                 DefinitionRef atprocRef = new DefinitionRef(subproc.Super + "_" + subproc.Name, new Expression[] { });
                 Spec.DefinitionDatabase.TryGetValue(subproc.Super + "_" + subproc.Name, out atprocRef.Def);
                 if (atprocRef.Def == null)
-                    throw new Exception("At glue statement, cannot find port" + subproc.Name + " on " + subproc.Super);
+                    throw new Exception("At exec statement, cannot find port" + subproc.Name + " on " + subproc.Super);
                 // Process atprocRef = def.Process;
                 if (head != null)
                 {
@@ -280,14 +316,14 @@ namespace PAT.ADL.LTS.ADL_Parser
                 // go to next process
                 subproc = subproc.next;
             }
-            // create glue process
-            DefinitionRef glueRef = new DefinitionRef(config.Name, new Expression[] { });
-            //Console.WriteLine("glue proc: " + head.ToString());
-            Definition instanceDef = new Definition(glueRef.Name, new String[] { }, head);
+            // create exec process
+            DefinitionRef execRef = new DefinitionRef(config.Name, new Expression[] { });
+            //Console.WriteLine("exec proc: " + head.ToString());
+            Definition instanceDef = new Definition(execRef.Name, new String[] { }, head);
 
-            glueRef.Def = instanceDef;
+            execRef.Def = instanceDef;
             Spec.DefinitionDatabase.Add(instanceDef.Name, instanceDef);
-            Spec.GlueProcessDatabase.Add(glueRef.Name, glueRef);
+            Spec.ExecProcessDatabase.Add(execRef.Name, execRef);
 
 
         }
@@ -311,6 +347,26 @@ namespace PAT.ADL.LTS.ADL_Parser
                 AssertionBase asrt = createBottleneckAssertion(assertion);
                 Spec.AssertionDatabase.Add(assertion.Target + "-bottleneckfree", asrt);
             }
+            else if (assertion.Type == AssertionExpr.AssertionType.ambiguousinterface)
+            {
+                AssertionBase asrt = createAmbiguousInterfaceAssertion(assertion);
+                Spec.AssertionDatabase.Add(assertion.Target + "-ambiguousinterface", asrt);
+            }
+            else if (assertion.Type == AssertionExpr.AssertionType.lavaflow)
+            {
+                AssertionBase asrt = createLavaFlowAssertion(assertion);
+                Spec.AssertionDatabase.Add(assertion.Target + "-lavaflow", asrt);
+            }
+            else if (assertion.Type == AssertionExpr.AssertionType.decomposition)
+            {
+                AssertionBase asrt = createDecompositionAssertion(assertion);
+                Spec.AssertionDatabase.Add(assertion.Target + "-decomposition", asrt);
+            }
+            else if (assertion.Type == AssertionExpr.AssertionType.poltergeists)
+            {
+                AssertionBase asrt = createPoltergeistAssertion(assertion);
+                Spec.AssertionDatabase.Add(assertion.Target + "-poltergeist", asrt);
+            }
             else if (assertion.Type == AssertionExpr.AssertionType.LTL)
             {
                 AssertionBase asrt = createLTLAssertion(assertion, options);
@@ -325,8 +381,8 @@ namespace PAT.ADL.LTS.ADL_Parser
 
         private AssertionBase createReachability(AssertionExpr assertion)
         {
-            Spec.GlueProcessDatabase.TryGetValue(assertion.Target, out DefinitionRef glueProc);
-            ADLAssertionReachability assertionCSP = new ADLAssertionReachability(glueProc, assertion.Expression);
+            Spec.ExecProcessDatabase.TryGetValue(assertion.Target, out DefinitionRef execProc);
+            ADLAssertionReachability assertionCSP = new ADLAssertionReachability(execProc, assertion.Expression);
             //Spec.DeclarationDatabase.Add(assertion.Expression, new Expression());
             // TODO: need to revise this to work 
             return assertionCSP;
@@ -334,11 +390,11 @@ namespace PAT.ADL.LTS.ADL_Parser
 
         private AssertionBase createDeadlockAssertion(AssertionExpr assertion)
         {
-            Spec.GlueProcessDatabase.TryGetValue(assertion.Target, out DefinitionRef glueProc);
+            Spec.ExecProcessDatabase.TryGetValue(assertion.Target, out DefinitionRef execProc);
             // insert assertion 
             ADLAssertionDeadLock assertionCSP = null;
-            if (glueProc != null) {
-               assertionCSP = new ADLAssertionDeadLock(glueProc);
+            if (execProc != null) {
+               assertionCSP = new ADLAssertionDeadLock(execProc);
             }else
                 throw new Exception("Unknown target process for assertion");
 
@@ -347,12 +403,12 @@ namespace PAT.ADL.LTS.ADL_Parser
 
         private AssertionBase createBottleneckAssertion(AssertionExpr assertion)
         {
-            Spec.GlueProcessDatabase.TryGetValue(assertion.Target, out DefinitionRef glueProc);
+            Spec.ExecProcessDatabase.TryGetValue(assertion.Target, out DefinitionRef execProc);
             // insert assertion 
-            ADLAssertionBottleneck assertionCSP = null;
-            if (glueProc != null)
+            ADLAssertionAmbiguousInterface assertionCSP = null;
+            if (execProc != null)
             {
-                assertionCSP = new ADLAssertionBottleneck(glueProc);
+                assertionCSP = new ADLAssertionAmbiguousInterface(execProc);
             }
             else
                 throw new Exception("Unknown target process for assertion");
@@ -362,12 +418,76 @@ namespace PAT.ADL.LTS.ADL_Parser
 
         private AssertionBase createCircularAssertion(AssertionExpr assertion)
         {
-            Spec.GlueProcessDatabase.TryGetValue(assertion.Target, out DefinitionRef glueProc);
+            Spec.ExecProcessDatabase.TryGetValue(assertion.Target, out DefinitionRef execProc);
             // insert assertion 
             ADLAssertionCircular assertionCSP = null;
-            if (glueProc != null)
+            if (execProc != null)
             {
-                assertionCSP = new ADLAssertionCircular(glueProc);
+                assertionCSP = new ADLAssertionCircular(execProc);
+            }
+            else
+                throw new Exception("Unknown target process for assertion");
+
+            return assertionCSP;
+        }
+
+        private AssertionBase createAmbiguousInterfaceAssertion(AssertionExpr assertion)
+        {
+            Spec.ExecProcessDatabase.TryGetValue(assertion.Target, out DefinitionRef execProc);
+            // insert assertion 
+            ADLAssertionAmbiguosInterface assertionCSP = null;
+            if (execProc != null)
+            {
+                assertionCSP = new ADLAssertionAmbiguosInterface(execProc);
+                assertionCSP.ComponentDatabase = Spec.ComponentDatabase;
+            }
+            else
+                throw new Exception("Unknown target process for assertion");
+
+            return assertionCSP;
+        }
+
+        private AssertionBase createLavaFlowAssertion(AssertionExpr assertion)
+        {
+            Spec.ExecProcessDatabase.TryGetValue(assertion.Target, out DefinitionRef execProc);
+            // insert assertion 
+            ADLAssertionLavaFlow assertionCSP = null;
+            if (execProc != null)
+            {
+                assertionCSP = new ADLAssertionLavaFlow(execProc);
+                assertionCSP.ComponentDatabase = Spec.ComponentDatabase;
+            }
+            else
+                throw new Exception("Unknown target process for assertion");
+
+            return assertionCSP;
+        }
+
+        private AssertionBase createDecompositionAssertion(AssertionExpr assertion)
+        {
+            Spec.ExecProcessDatabase.TryGetValue(assertion.Target, out DefinitionRef execProc);
+            // insert assertion 
+            ADLAssertionDecomposition assertionCSP = null;
+            if (execProc != null)
+            { 
+                assertionCSP = new ADLAssertionDecomposition(execProc);
+                assertionCSP.ComponentDatabase = Spec.ComponentDatabase;
+            }
+            else
+                throw new Exception("Unknown target process for assertion");
+
+            return assertionCSP;
+        }
+
+        private AssertionBase createPoltergeistAssertion(AssertionExpr assertion)
+        {
+            Spec.ExecProcessDatabase.TryGetValue(assertion.Target, out DefinitionRef execProc);
+            // insert assertion 
+            ADLAssertionPoltergeist assertionCSP = null;
+            if (execProc != null)
+            {
+                assertionCSP = new ADLAssertionPoltergeist(execProc);
+                assertionCSP.ComponentDatabase = Spec.ComponentDatabase;
             }
             else
                 throw new Exception("Unknown target process for assertion");
@@ -377,13 +497,19 @@ namespace PAT.ADL.LTS.ADL_Parser
 
         private AssertionBase createLTLAssertion(AssertionExpr assertion, string options)
         {
-            Spec.GlueProcessDatabase.TryGetValue(assertion.Target, out DefinitionRef glueProc);
+            Spec.ExecProcessDatabase.TryGetValue(assertion.Target, out DefinitionRef execProc);
             ADLAssertionLTL assertLTL = null;
-            if (glueProc != null)
+            if (execProc != null)
             {
-                String ltl = assertion.Expression;
-                assertLTL = new ADLAssertionLTL(glueProc, ltl.Trim());
-                BuchiAutomata PositiveBA = LTL2BA.FormulaToBA(ltl.Trim(), options, null);
+                String ltl = assertion.Expression.Trim();
+                // Update LTL state
+                if(ltl.IndexOf(".")!=-1)
+                  ltl = ltl.Replace('.', '_');
+              
+                
+                // create ADLAssertionLTL
+                assertLTL = new ADLAssertionLTL(execProc, ltl);
+                BuchiAutomata PositiveBA = LTL2BA.FormulaToBA(ltl, options, null);
                 // default to false for x operator U X V T F R  NOT SUPPORTED for now
                 bool hasXoperator = false;
                 PositiveBA.HasXOperator = hasXoperator;
@@ -393,7 +519,7 @@ namespace PAT.ADL.LTS.ADL_Parser
                 }
                 else
                 {
-                    BuchiAutomata BA = LTL2BA.FormulaToBA("!(" + ltl.Trim() + ")", options, null); //.Replace(".", Ultility.Ultility.DOT_PREFIX)      
+                    BuchiAutomata BA = LTL2BA.FormulaToBA("!(" + ltl+ ")", options, null); //.Replace(".", Ultility.Ultility.DOT_PREFIX)      
                     BA.HasXOperator = hasXoperator;
                     assertLTL.SeteBAs(BA, PositiveBA);
                 }

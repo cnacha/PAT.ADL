@@ -1,4 +1,5 @@
 ﻿using PAT.ADL.LTS;
+using ADLParser.Classes;
 using PAT.Common.Classes.DataStructure;
 using PAT.Common.Classes.ModuleInterface;
 using PAT.Common.Classes.Ultility;
@@ -10,12 +11,14 @@ using System.Text;
 
 namespace PAT.ADL.Assertions
 {
-    public class ADLAssertionAmbiguousInterface: AssertionBase
+    public class ADLAssertionDecomposition: AssertionBase
     {
         protected bool isNotTerminationTesting;
         private DefinitionRef Process;
+        public Dictionary<string, Component> ComponentDatabase = null;
+        private static int MAX_SEQUENCE_SINGLE_INTERFACE_INVOKE = 3;
 
-        public ADLAssertionAmbiguousInterface(DefinitionRef processDef): base()
+        public ADLAssertionDecomposition(DefinitionRef processDef): base()
         {
             Process = processDef;
         }
@@ -39,7 +42,7 @@ namespace PAT.ADL.Assertions
         public override string ToString()
         {
 
-            return StartingProcess + " bottleneckfree";
+            return StartingProcess + " decomposition";
         }
 
         /// <summary>
@@ -58,6 +61,15 @@ namespace PAT.ADL.Assertions
             }
         }
 
+        private bool IsSingleInterface(string compName)
+        {
+            ComponentDatabase.TryGetValue(compName, out Component comp);
+            if (comp.portList.Count == 1)
+                return true;
+            else
+                return false;
+        }
+
         public void DFSVerification()
         {
             StringHashTable Visited = new StringHashTable(1048576);
@@ -72,6 +84,7 @@ namespace PAT.ADL.Assertions
 
             List<int> depthList = new List<int>(1024);
             List<String> visitedStates = new List<String>();
+            List<string> singleInterfaceInvokeSequence = new List<string>();
 
             do
             {
@@ -94,7 +107,7 @@ namespace PAT.ADL.Assertions
 
                         depthList.RemoveAt(lastIndex);
                         this.VerificationOutput.CounterExampleTrace.RemoveAt(lastIndex);
-                        visitedStates.RemoveAt(lastIndex);
+                        
                     }
                 }
 
@@ -105,26 +118,31 @@ namespace PAT.ADL.Assertions
                 Console.Write("tracing event: " + current.Event + " " + current.GetID());
                 Console.WriteLine(toStringCounterExample(this.VerificationOutput.CounterExampleTrace)+"\n");
 
-                // track dpulicate channel input
-                if(current.Event.IndexOf("!")!= -1 && visitedStates.Contains(current.Event.Substring(0, current.Event.IndexOf("!"))) )
+                if (current.Event.IndexOf("!") == -1 && current.Event.IndexOf("?") == -1 && current.Event.IndexOf("_") != -1)
                 {
-                    Console.WriteLine("              bootleneck happen *********");
-                    this.VerificationOutput.VerificationResult = VerificationResultType.INVALID;
-                    this.VerificationOutput.LoopIndex = visitedStates.IndexOf(current.Event.Substring(0, current.Event.IndexOf("!")));
-                    this.VerificationOutput.NoOfStates = Visited.Count;
-                    return;
-                }
-                if(current.Event.IndexOf("!")!=-1 )
-                {
-                    visitedStates.Add(current.Event.Substring(0, current.Event.IndexOf("!")));
-
-                } else if (current.Event.IndexOf("?") != -1)
-                {
-                    visitedStates.Add(current.Event.Substring(0, current.Event.IndexOf("?")));
-                }
-                else
-                {
-                    visitedStates.Add(current.Event);
+                    // not channel event, it is component event
+                    Console.WriteLine("comp event: " + current.Event);
+                    String currentComponent = current.Event.Substring(0, current.Event.IndexOf("_"));
+                    if (IsSingleInterface(currentComponent))
+                    {
+                        if(singleInterfaceInvokeSequence.Count()==0 || singleInterfaceInvokeSequence.Last() != currentComponent)
+                        {
+                            singleInterfaceInvokeSequence.Add(currentComponent);
+                            printComponentList(singleInterfaceInvokeSequence);
+                            if (singleInterfaceInvokeSequence.Count() > MAX_SEQUENCE_SINGLE_INTERFACE_INVOKE)
+                            {
+                                // functional decomposition found
+                                Console.WriteLine("              Functional decomposition ********* ");
+                                this.VerificationOutput.VerificationResult = VerificationResultType.INVALID;
+                                this.VerificationOutput.NoOfStates = Visited.Count;
+                                return;
+                            }
+                        } 
+             
+                    } else
+                    {
+                        singleInterfaceInvokeSequence.Clear();
+                    }
                 }
 
                 depthList.Add(depth);
@@ -164,6 +182,17 @@ namespace PAT.ADL.Assertions
             }
 
             this.VerificationOutput.NoOfStates = Visited.Count;
+        }
+
+        private void printComponentList(List<String> component)
+        {
+            Console.Write("complist:");
+            foreach (var s in component)
+            {
+               
+                Console.Write(s +"->");
+            }
+            Console.WriteLine();
         }
 
         private Boolean isProcessEventExist(List<String> evtrace, String connectorName)

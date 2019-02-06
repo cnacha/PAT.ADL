@@ -21,7 +21,10 @@ namespace ADLParser.Classes
 
         public string getName()
         {
-            return this.Name + "_" + this.ConfigName;
+            if (this.ConfigName != null && this.ConfigName != "")
+                return this.ConfigName + "_" + this.Name  ;
+            else
+                return this.Name;
         }
 
         public override String ToString()

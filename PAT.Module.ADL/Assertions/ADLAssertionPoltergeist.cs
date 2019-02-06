@@ -1,4 +1,5 @@
-﻿using PAT.ADL.LTS;
+﻿using ADLParser.Classes;
+using PAT.ADL.LTS;
 using PAT.Common.Classes.DataStructure;
 using PAT.Common.Classes.ModuleInterface;
 using PAT.Common.Classes.Ultility;
@@ -10,12 +11,13 @@ using System.Text;
 
 namespace PAT.ADL.Assertions
 {
-    public class ADLAssertionAmbiguousInterface: AssertionBase
+    public class ADLAssertionPoltergeist : AssertionBase
     {
         protected bool isNotTerminationTesting;
         private DefinitionRef Process;
+        public Dictionary<string, Component> ComponentDatabase = null;
 
-        public ADLAssertionAmbiguousInterface(DefinitionRef processDef): base()
+        public ADLAssertionPoltergeist(DefinitionRef processDef): base()
         {
             Process = processDef;
         }
@@ -39,7 +41,7 @@ namespace PAT.ADL.Assertions
         public override string ToString()
         {
 
-            return StartingProcess + " bottleneckfree";
+            return StartingProcess + " poltergeist";
         }
 
         /// <summary>
@@ -58,11 +60,22 @@ namespace PAT.ADL.Assertions
             }
         }
 
+        private bool IsSingleInterface(string compName)
+        {
+            ComponentDatabase.TryGetValue(compName, out Component comp);
+            if (comp.portList.Count == 1)
+                return true;
+            else
+                return false;
+        }
+        string poltergeist = "";
         public void DFSVerification()
         {
             StringHashTable Visited = new StringHashTable(1048576);
 
             Stack<ConfigurationBase> working = new Stack<ConfigurationBase>(1024);
+
+             Dictionary<string, List<string>> componentInvokeByDict = new Dictionary<string, List<string>>();
 
             Visited.Add(InitialStep.GetID());
 
@@ -71,8 +84,16 @@ namespace PAT.ADL.Assertions
             depthStack.Push(0);
 
             List<int> depthList = new List<int>(1024);
-            List<String> visitedStates = new List<String>();
+            string previousComponent = "";
 
+
+            // initialize invokeCount dictionary for counting how many time the component is called
+            Dictionary<string, int> invokeCount = new Dictionary<string, int>();
+            foreach(string comp in ComponentDatabase.Keys)
+            {
+                invokeCount.Add(comp, 0);
+            }
+            
             do
             {
                 if (CancelRequested)
@@ -89,43 +110,74 @@ namespace PAT.ADL.Assertions
                 {
                     while (depthList[depthList.Count - 1] >= depth)
                     {
-
                         int lastIndex = depthList.Count - 1;
-
                         depthList.RemoveAt(lastIndex);
+
                         this.VerificationOutput.CounterExampleTrace.RemoveAt(lastIndex);
-                        visitedStates.RemoveAt(lastIndex);
+                        // visitedStates.RemoveAt(lastIndex);
+                        
                     }
                 }
-
+                
                 this.VerificationOutput.CounterExampleTrace.Add(current);
                
                 IEnumerable<ConfigurationBase> list = current.MakeOneMove();
                 this.VerificationOutput.Transitions += list.Count();
-                Console.Write("tracing event: " + current.Event + " " + current.GetID());
-                Console.WriteLine(toStringCounterExample(this.VerificationOutput.CounterExampleTrace)+"\n");
+                 Console.WriteLine("tracing event: " + current.Event + " " + current.GetID()+"||");
+                Console.WriteLine(toStringCounterExample(this.VerificationOutput.CounterExampleTrace));
 
-                // track dpulicate channel input
-                if(current.Event.IndexOf("!")!= -1 && visitedStates.Contains(current.Event.Substring(0, current.Event.IndexOf("!"))) )
+               ///////////////////////////////////////////////////////// Code specific for this smell detection
+                if(current.Event.IndexOf("!")==-1 && current.Event.IndexOf("?") == -1 && current.Event.IndexOf("_")!=-1)
                 {
-                    Console.WriteLine("              bootleneck happen *********");
-                    this.VerificationOutput.VerificationResult = VerificationResultType.INVALID;
-                    this.VerificationOutput.LoopIndex = visitedStates.IndexOf(current.Event.Substring(0, current.Event.IndexOf("!")));
-                    this.VerificationOutput.NoOfStates = Visited.Count;
-                    return;
-                }
-                if(current.Event.IndexOf("!")!=-1 )
-                {
-                    visitedStates.Add(current.Event.Substring(0, current.Event.IndexOf("!")));
+                    // not channel event, it is component event
+                    Console.WriteLine("comp event: "+current.Event);
+                    String currentComponent = current.Event.Substring(0,current.Event.IndexOf("_"));
+                        
+                    // check if the previous calling component and current component are not the same, also calling component has single interface 
+                    if (currentComponent != previousComponent && previousComponent != "" && this.IsSingleInterface(previousComponent))
+                    {
+                        // add to dict for for component invoked
+                        if (!componentInvokeByDict.ContainsKey(currentComponent))
+                        {
+                            List<string> componentInvokeList = new List<string>();
+                            componentInvokeList.Add(previousComponent);
+                            invokeCount[previousComponent] = invokeCount[previousComponent] + 1;
+                            componentInvokeByDict.Add(currentComponent, componentInvokeList);
 
-                } else if (current.Event.IndexOf("?") != -1)
-                {
-                    visitedStates.Add(current.Event.Substring(0, current.Event.IndexOf("?")));
+                        }
+                        else
+                        {
+                            componentInvokeByDict.TryGetValue(currentComponent, out List<string> componentInvokeList);
+                            if (!componentInvokeList.Contains(previousComponent))
+                            {
+                                componentInvokeList.Add(previousComponent);
+                                invokeCount[previousComponent] = invokeCount[previousComponent] + 1;
+                                componentInvokeByDict[currentComponent] = componentInvokeList;
+                            }
+                        }
+
+                        // perform polstergeist checking
+                        if (componentInvokeByDict[currentComponent].Count >= ComponentDatabase.Count-1)
+                        {
+                            // poltergeist found when a component is called by all other components
+                            Console.WriteLine("              Poltergeist Found ********* " );
+                            poltergeist = currentComponent;
+                            this.VerificationOutput.VerificationResult = VerificationResultType.INVALID;
+                            this.VerificationOutput.NoOfStates = Visited.Count;
+                            PrintComponentInvokeDict(componentInvokeByDict, invokeCount);
+                            return;
+                        }
+                                            
+                    }
+                    previousComponent = currentComponent ;
                 }
-                else
-                {
-                    visitedStates.Add(current.Event);
-                }
+
+                
+
+                //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+                PrintComponentInvokeDict(componentInvokeByDict, invokeCount);
+                
 
                 depthList.Add(depth);
 
@@ -145,7 +197,7 @@ namespace PAT.ADL.Assertions
                             working.Push(step);
                             depthStack.Push(depth + 1);
                         }
-                    }
+                    }   
                 }
 
 
@@ -166,6 +218,33 @@ namespace PAT.ADL.Assertions
             this.VerificationOutput.NoOfStates = Visited.Count;
         }
 
+        private void PrintList(HashSet<string> set)
+        {
+            foreach(string e in set)
+            {
+                Console.Write(e + " ");
+            }
+            Console.WriteLine();
+        }
+        
+        private void PrintComponentInvokeDict(Dictionary<string, List<string>> dict, Dictionary<string, int> invokeCount)
+        { 
+            Console.WriteLine("============= ComponentInvokeDict=============");
+            foreach (string comp in dict.Keys)
+            {
+                dict.TryGetValue(comp, out List<String> compSource);
+                StringBuilder sb = new StringBuilder();
+                foreach(string csrc in compSource)
+                {
+                    sb.Append(csrc+", ");
+                }
+                
+                Console.WriteLine(comp +"["+invokeCount[comp]+"]" + " = ["+sb.ToString()+"]");
+               
+            }
+            Console.WriteLine("===============================================");
+        }
+        
         private Boolean isProcessEventExist(List<String> evtrace, String connectorName)
         {
             foreach(var s in evtrace)
@@ -285,7 +364,7 @@ namespace PAT.ADL.Assertions
                 }
                 else
                 {
-                    sb.AppendLine("The following trace leads to a deadlock situation.");
+                    sb.AppendLine("The following trace leads to a poltergeist: "+ poltergeist);
                 }
 
                 VerificationOutput.GetCounterxampleString(sb);

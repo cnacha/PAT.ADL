@@ -16,6 +16,16 @@ namespace ADLParser.Classes
             portList = new List<Feature>();
         }
 
+        public Feature getPortByName(string portName)
+        {
+            foreach (var port in portList)
+            {
+                if (port.Name == portName)
+                    return port;
+            }
+            return null;
+        }
+
         public override String ToString()
         {
            

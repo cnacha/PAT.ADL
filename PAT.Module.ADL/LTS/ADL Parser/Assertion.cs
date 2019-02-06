@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using PAT.ADL.LTS.ADL_Parser;
 
 namespace ADLParser.Classes
 {
@@ -13,11 +14,17 @@ namespace ADLParser.Classes
             circularfree,
             bottleneckfree,
             reachability,
+            ambiguousinterface,
+            lavaflow,
+            decomposition,
+            poltergeists,
             LTL
         }
         public AssertionType Type;
         public string Target;
         public string Expression;
+
+        public PAT.ADL.LTS.ADL_Parser.ADLParser.LtlexprContext ExpressionContext { get; internal set; }
 
         public AssertionExpr(string target)
         {
