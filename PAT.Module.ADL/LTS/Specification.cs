@@ -203,6 +203,7 @@ namespace PAT.ADL.LTS
 
             CheckVariableRange();
             // Console.WriteLine("Finish parsing spec....................");
+            Console.WriteLine(this.GetSpecification());
         }
 
         protected void CheckVariableRange()

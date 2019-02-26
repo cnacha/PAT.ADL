@@ -1,0 +1,71 @@
+﻿connector CSConnector {
+	role client(j) = request->req!j->res?j-> process -> client(j);  
+	role server()  = req?j -> invoke -> process -> res!j->server();
+}
+
+connector PSConnector {
+	role publisher(j) =  process -> pub!j  -> Skip;
+	role subscriber() =   pub?j -> process -> subscriber();
+}
+
+component WebStore {
+   port browse() = render -> output -> browse();
+   port order() = commit -> email -> order();
+   port receive() = acknowledge -> display -> receive();
+}
+component MobileStore {
+   port browse() = render -> output -> browse();
+   port order() = commit -> email -> order();;
+}
+component WebAdmin {
+	port manage() = result -> manage();
+}
+component CustomerNotifier {
+	port alert() = promo -> send -> alert();
+}
+component ProductCatelogue {
+	port access();
+}
+
+component OrderManager {
+	port proc();
+}
+
+component InventoryControl {
+	port issue() = locate -> fetch -> issue();
+}
+
+component ShippingControl {
+	port ship() = inform -> log -> ship();
+}
+
+system Shopping{
+     declare purchasing = CSConnector;
+     declare issuing = CSConnector;
+     declare shipping = CSConnector;
+     declare cataccessing = CSConnector;
+     declare newswire = PSConnector;
+
+     attach WebStore.order()  = purchasing.client(99);
+     attach MobileStore.order()  = purchasing.client(98);
+     attach WebStore.receive() = newswire.subscriber();
+     attach CustomerNotifier.alert() = newswire.publisher(77);
+     attach WebStore.browse() = cataccessing.client(99);
+     attach WebAdmin.manage() = cataccessing.client(98);
+     attach ProductCatelogue.access() = cataccessing.server();
+     attach OrderManager.proc() =  purchasing.server() <*> issuing.client();
+     attach InventoryControl.issue() = issuing.server() || shipping.client(88);
+     attach ShippingControl.ship() = shipping.server() <*> issuing.client();
+     // bottleneck on ordering
+    // execute WebStore.order() || MobileStore.order() || WebStore.receive() || CustomerNotifier.alert() || OrderManager.proc() || InventoryControl.issue() || ShippingControl.ship() ; 
+     // bottleneck on category access
+     //glue WebStore.order() || MobileStore.order()  || WebStore.browse() || WebAdmin.manage() || ProductCatelogue.access() || OrderManager.proc() || InventoryControl.issue() || ShippingControl.ship(); 
+     execute WebStore.order()  || OrderManager.proc() || InventoryControl.issue() || ShippingControl.ship(); 
+}
+
+assert Shopping deadlockfree;
+assert Shopping circularfree;
+assert Shopping bottleneckfree;
+assert Shopping ambiguousinterfacefree;
+assert Shopping |= <> WebStore.purchasing.client.process;
+assert Shopping |= [] (OrderManager.purchasing.server.process ->  <> WebStore.order.email);
