@@ -16,6 +16,7 @@ namespace PAT.ADL.Assertions
         protected bool isNotTerminationTesting;
         private DefinitionRef Process;
         public Dictionary<string, Component> ComponentDatabase = null;
+        public Dictionary<string, Attachment> AttachmentDatabase { get; internal set; }
 
         public ADLAssertionAmbiguosInterface(DefinitionRef processDef): base()
         {
@@ -62,12 +63,26 @@ namespace PAT.ADL.Assertions
 
         private bool IsSingleInterface(string compName)
         {
+            Console.Write("###IsSingleInterface");
             ComponentDatabase.TryGetValue(compName, out Component comp);
             if (comp.portList.Count == 1)
+            {
+                /*
+                AttachmentDatabase.TryGetValue(comp.portList[0].Name, out Attachment attachment);
+                Boolean isSingleAttch = attachment.isSingleInterface();
+                Console.WriteLine("     ### attached " + comp.portList[0].Name + " issingle#: " + isSingleAttch);
+                // find number of attachment
+                if (isSingleAttch)
+                    return true;
+                else
+                    return false;
+                    */
                 return true;
+            }
             else
                 return false;
         }
+
         string ambiguousInterface = "";
         public void DFSVerification()
         {
@@ -131,49 +146,61 @@ namespace PAT.ADL.Assertions
                 Console.WriteLine(toStringCounterExample(this.VerificationOutput.CounterExampleTrace));
 
                ///////////////////////////////////////////////////////// Code specific for this smell detection
-                if(current.Event.IndexOf("!")==-1 && current.Event.IndexOf("?") == -1 && current.Event.IndexOf("_")!=-1)
+
+                if(current.Event.IndexOf("!")==-1 && current.Event.IndexOf("?") == -1 && current.Event.IndexOf("_")!=-1 && current.Event.IndexOf("consumer_request")==-1)
                 {
                     // not channel event, it is component event
                    Console.WriteLine("comp event: "+current.Event);
-                    String currentComponent = current.Event.Substring(0,current.Event.IndexOf("_"));
-                    // check if the previous calling component and current component are not the same, also calling component has single interface 
-                    if (currentComponent != previousComponent && previousComponent != "" && this.IsSingleInterface(previousComponent))
+                    String currentComponent = null;
+                    try
                     {
-                        // START add to dict for debuging
-                        if (!componentInvokeByDict.ContainsKey(currentComponent))
+                        currentComponent = current.Event.Substring(0, current.Event.IndexOf("_"));
+                        // check if the previous calling component and current component are not the same, also calling component has single interface 
+                        Console.WriteLine("currentComponent: " + currentComponent + "   previousComponent: " + previousComponent);
+                        if (currentComponent != previousComponent && previousComponent != "" && IsSingleInterface(previousComponent))
                         {
-                            List<string> componentInvokeList = new List<string>();
-                            componentInvokeList.Add(previousComponent);
-                            componentInvokeByDict.Add(currentComponent, componentInvokeList);
-
-                        }
-                        else
-                        {
-                            componentInvokeByDict.TryGetValue(currentComponent, out List<string> componentInvokeList);
-                            if (!componentInvokeList.Contains(previousComponent))
+                            // START add to dict for debuging
+                            if (!componentInvokeByDict.ContainsKey(currentComponent))
                             {
+                                List<string> componentInvokeList = new List<string>();
                                 componentInvokeList.Add(previousComponent);
-                                
-                                componentInvokeByDict[currentComponent] = componentInvokeList;
+                                componentInvokeByDict.Add(currentComponent, componentInvokeList);
+
+                            }
+                            else
+                            {
+                                componentInvokeByDict.TryGetValue(currentComponent, out List<string> componentInvokeList);
+                                if (!componentInvokeList.Contains(previousComponent))
+                                {
+                                    componentInvokeList.Add(previousComponent);
+
+                                    componentInvokeByDict[currentComponent] = componentInvokeList;
+                                }
+                            }
+                            // END add to dict for debuging
+
+                            // actual checking for ambiguous interface
+                            if (singleInterfaceComponentInvoked.Contains(previousComponent) && isOnRequest)
+                            {
+                                // found ambiguous
+                                Console.WriteLine("              Ambiguous Interface ********* " + previousComponent + " " + currentComponent);
+                                this.VerificationOutput.VerificationResult = VerificationResultType.INVALID;
+                                this.VerificationOutput.NoOfStates = Visited.Count;
+                                ambiguousInterface = previousComponent;
+                                PrintComponentInvokeDict(componentInvokeByDict);
+                                return;
+                            }
+                            else if (isOnRequest)
+                            {
+                                singleInterfaceComponentInvoked.Add(previousComponent);
                             }
                         }
-                        // END add to dict for debuging
-                        // actual checking for ambiguous interface
-                        if (singleInterfaceComponentInvoked.Contains(previousComponent) && isOnRequest)
-                        {
-                            // found ambiguous
-                            Console.WriteLine("              Ambiguous Interface ********* "+ previousComponent +" "+ currentComponent);
-                            this.VerificationOutput.VerificationResult = VerificationResultType.INVALID;
-                            this.VerificationOutput.NoOfStates = Visited.Count;
-                            ambiguousInterface = previousComponent;
-                            PrintComponentInvokeDict(componentInvokeByDict);
-                            return;
-                        }
-                        else if(isOnRequest)
-                        {
-                            singleInterfaceComponentInvoked.Add(previousComponent);
-                        }
                     }
+                    catch(Exception e)
+                    {
+                        Console.WriteLine(e.ToString());
+                    }
+                   
                     Console.Write(" compInvoked->");
                     PrintList(singleInterfaceComponentInvoked);
 

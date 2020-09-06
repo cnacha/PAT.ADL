@@ -42,7 +42,7 @@ namespace PAT.ADL.LTS.ADL_Parser
                     paramsExpr.Add(new Variable(param));
                 }
             }
-            // create role process
+            // create main role process
             DefinitionRef process = new DefinitionRef(eventPrefixStr + "_"+ role.getName(), paramsExpr.ToArray());
             Process prev = null;
             Console.WriteLine(role.process.ElementAt(role.process.Count - 1).Name +"===="+ role.getName());
@@ -70,11 +70,16 @@ namespace PAT.ADL.LTS.ADL_Parser
                     if (roleProcess.ElementAt(i).Name.IndexOf("_process")!=-1)
 
                     {
-                        // combine process
-                       
+                        
+                       // get rid of xxx() in linked role process
                         if (linkedRole.process.ElementAt(linkedRole.process.Count - 1).Name == linkedRole.Name)
                             linkedRole.process.RemoveAt(linkedRole.process.Count - 1);
+                        Console.WriteLine("##inserting "+roleProcess.ElementAt(i));
+                        // combine process at where  _process is
                         roleProcess.InsertRange(i, linkedRole.process);
+
+                        // combine process after where  _process is
+                       // roleProcess.InsertRange(i+1, linkedRole.process);
                         break;
                     }
                 }
@@ -90,8 +95,13 @@ namespace PAT.ADL.LTS.ADL_Parser
                     {
                         if (attachedPort.process.ElementAt(attachedPort.process.Count - 1).Name == attachedPort.Name)
                             attachedPort.process.RemoveAt(attachedPort.process.Count - 1);
+
                         // insert event trail after process event
-                        roleProcess.InsertRange(i+1, attachedPort.process);
+                      //  roleProcess.InsertRange(i+1, attachedPort.process);
+
+                        // insert event trail at process event
+                        roleProcess.InsertRange(i, attachedPort.process);
+
                         break;
                     }
                 }
@@ -154,16 +164,174 @@ namespace PAT.ADL.LTS.ADL_Parser
 
 
         }
-/*
-        private void createConnectorSpec(Connector conn, Linkage linkage, Connector linkageConn)
-        {
-            foreach (var role in conn.roleList)
-            {
-                createRoleProcessSpec(conn, role.Name, linkage, linkageConn);
 
+        private void printProcess(List<SysEvent> list)
+        {
+            foreach(SysEvent item in list)
+            {
+                Console.Write(item.getName() +"->");
             }
+            Console.WriteLine();
         }
-        */
+
+        private void createRoleProcessSpecWithMultipleLinked(Feature role, List<Feature> linkedRoles, String eventPrefixStr, Feature attachedPort, String componentName)
+        {
+            if (Spec.DefinitionDatabase.ContainsKey(eventPrefixStr + "_" + role.getName()))
+                return;
+            //Feature role = conn.getRoleByName(roleName);
+
+            Spec.CompStateDatabase.TryGetValue(componentName, out List<string> statesList);
+            if (statesList == null)
+            {
+                statesList = new List<string>();
+                Spec.CompStateDatabase.Add(componentName, statesList);
+            }
+
+            // create parameter of role process
+            List<Expression> paramsExpr = new List<Expression>();
+            if (role.Params.Count > 0)
+            {
+                foreach (var param in role.Params)
+                {
+                    paramsExpr.Add(new Variable(param));
+                }
+            }
+            // create main role process
+            DefinitionRef process = new DefinitionRef(eventPrefixStr + "_" + role.getName(), paramsExpr.ToArray());
+            Process prev = null;
+            Console.WriteLine(role.process.ElementAt(role.process.Count - 1).Name + "====" + role.getName());
+            if (role.process.ElementAt(role.process.Count - 1).getName() == role.getName())
+            {
+                prev = process;
+            }
+            else if (role.process.ElementAt(role.process.Count - 1).Name.IndexOf("Skip") != -1)
+            {
+                prev = new Skip();
+            }
+            else if (role.process.ElementAt(role.process.Count - 1).Name.IndexOf("Stop") != -1)
+            {
+                prev = new Stop();
+            }
+            // copy list of event from the role process
+            List<SysEvent> roleProcess = new List<SysEvent>();
+            roleProcess.AddRange(role.process);
+
+            // intercept if there is a link to other role
+            if (linkedRoles != null)
+            {
+                foreach(Feature linkedRole in linkedRoles)
+                {
+                    for (int i = roleProcess.Count-1; i>=0; i--)
+                    {
+                        if (roleProcess.ElementAt(i).Name.IndexOf("_process") != -1)
+                        {
+                            // get rid of xxx() in linked role process
+                            if (linkedRole.process.ElementAt(linkedRole.process.Count - 1).Name == linkedRole.Name)
+                                linkedRole.process.RemoveAt(linkedRole.process.Count - 1);
+
+                            // combine process at where  _process is
+                             roleProcess.InsertRange(i, linkedRole.process);
+
+                            // combine process after where  _process is
+                            //roleProcess.InsertRange(i + 1, linkedRole.process);
+                            break;
+                        }
+                    }
+                }
+                Console.WriteLine("####### here is combined role process "+ linkedRoles.Count);
+                printProcess(roleProcess);
+                Console.WriteLine("##################################");
+            }
+           
+
+            // insert component internal computation
+            if (attachedPort.process.Count != 0)
+            {
+                for (int i = 0; i < roleProcess.Count; i++)
+                {
+                    if (roleProcess.ElementAt(i).Name.IndexOf("_process") != -1)
+
+                    {
+                        if (attachedPort.process.ElementAt(attachedPort.process.Count - 1).Name == attachedPort.Name)
+                            attachedPort.process.RemoveAt(attachedPort.process.Count - 1);
+
+                        // insert event trail after process event
+                        //  roleProcess.InsertRange(i + 1, attachedPort.process);
+
+                        // insert event trail before process event
+                        roleProcess.InsertRange(i , attachedPort.process);
+                        break;
+                    }
+                }
+            }
+
+
+            // construct a sequenc for the role process
+            // start from the second event
+            for (int i = roleProcess.Count - 2; i >= 0; i--)
+            {
+                var sysEvent = roleProcess.ElementAt(i);
+                Process current = null;
+                if (sysEvent is SysProcess)
+                {
+                    // it is event
+                    current = new EventPrefix(new Common.Classes.LTS.Event(eventPrefixStr + "_" + sysEvent.getName()), prev);
+                    Console.WriteLine("   ->" + componentName + "  addEvent " + eventPrefixStr + "_" + sysEvent.getName());
+                    statesList.Add(eventPrefixStr + "_" + sysEvent.getName());
+                }
+                else if (sysEvent is SysChannel)
+                {
+                    // it is channel
+                    SysChannel channel = (SysChannel)sysEvent;
+                    // parse channel parameters
+                    List<Expression> chparamsExpr = new List<Expression>();
+                    if (channel.Parameters.Count > 0)
+                    {
+                        foreach (var param in channel.Parameters)
+                        {
+                            chparamsExpr.Add(new Variable(param));
+                        }
+                    }
+                    // add channelqueue to database, if still not exists
+                    if (!Spec.ChannelDatabase.ContainsKey(channel.getName()))
+                    {
+                        ChannelQueue queue = new ChannelQueue(1);
+                        Spec.ChannelDatabase.Add(channel.getName(), queue);
+                    }
+                    if (channel.ChannelType == SysChannel.Type.Input)
+                    {
+                        current = new ChannelInput(channel.getName(), null, chparamsExpr.ToArray(), prev);
+                    }
+                    else if (channel.ChannelType == SysChannel.Type.Output)
+                    {
+                        current = new ChannelOutput(channel.getName(), null, chparamsExpr.ToArray(), prev);
+                    }
+                }
+                prev = current;
+            }
+            //Spec.CompStateDatabase.Add(componentName, statesList);
+            Spec.CompStateDatabase.TryGetValue(componentName, out List<string> outstatesList);
+            Console.WriteLine("     -> outstate: " + outstatesList.Count);
+            // create process definition
+            Definition processDef = new Definition(eventPrefixStr + "_" + role.getName(), role.Params.ToArray(), prev);
+            process.Def = processDef;
+
+            // add role process to spec
+            Console.WriteLine("............ create role process :" + role.getName());
+            Spec.DefinitionDatabase.Add(processDef.Name, processDef);
+
+
+        }
+        /*
+                private void createConnectorSpec(Connector conn, Linkage linkage, Connector linkageConn)
+                {
+                    foreach (var role in conn.roleList)
+                    {
+                        createRoleProcessSpec(conn, role.Name, linkage, linkageConn);
+
+                    }
+                }
+                */
         private Expression[] convertParamValues(List<String> str)
         {
             List<Expression> paramsExpr = new List<Expression>();
@@ -194,13 +362,15 @@ namespace PAT.ADL.LTS.ADL_Parser
             //  Dictionary<string, DefinitionRef> attachMap = new Dictionary<string, DefinitionRef>();
             foreach (var attach in config.attachList)
             {
+                Console.WriteLine("##loop on attach: " + attach.LeftName);
                 if(!Spec.ComponentDatabase.ContainsKey(attach.LeftName) )
                     throw new Exception("No component " + attach.LeftName + " found");
                 // find component
                 Spec.ComponentDatabase.TryGetValue(attach.LeftName, out Component comp);
                 // find internal process associated to the component
                 Feature port = comp.getPortByName(attach.LeftFunction.Name);
-                Console.WriteLine("attach " + attach.LeftName + "port: "+port.Name+" portproc:" + port.process.Count);
+                Spec.AttachmentDatabase.Add(port.Name, attach);
+                Console.WriteLine("attach " + attach.LeftName + "port: "+port.Name+" portproc:" + attach.HeadFunction.getCountEventAfter());
 
                 SysProcess current = attach.HeadFunction;
                 SysProcess prevProc = null;
@@ -209,9 +379,13 @@ namespace PAT.ADL.LTS.ADL_Parser
                 Process headprocRef = null;
                 // loop through trail of process of attachment
                 String process_prefix = attach.LeftName + "_";
+                List<Feature> linkedRoles = new List<Feature>();
+                Feature headEmbedProcRole = null;
+                SysProcess headEmbedProc = null;
                 while (current != null)
                 {
                     
+                    Console.WriteLine("#loop on attach process "+current.getName());
                     atprocRef = new DefinitionRef(process_prefix + current.Super + "_" + current.Name  , convertParamValues(current.Parameters));
                     // retrieve connector
                     connectorInstanceList.TryGetValue(current.Super, out Connector conn);
@@ -247,18 +421,37 @@ namespace PAT.ADL.LTS.ADL_Parser
                     
                         else if (current.operation == SysProcess.Operation.Embed)
                         {
-                            atprocRef = new DefinitionRef(process_prefix + prevRole.ConfigName + "_" + prevRole.Name  , convertParamValues(prevProc.Parameters));
-                            // create embed 
-                            this.createRoleProcessSpec(prevRole, role.DeepClone<Feature>(), attach.LeftName, port, comp.Name);
-                            Spec.DefinitionDatabase.TryGetValue(process_prefix + prevRole.getName(), out atprocRef.Def);
-                            headprocRef = atprocRef;
+                            if(current.next!=null && current.next.operation == SysProcess.Operation.Embed)
+                            {
+                                linkedRoles.Add(role.DeepClone<Feature>());
+                            } else {
+                                linkedRoles.Add(role.DeepClone<Feature>());
+                                Console.WriteLine(" #process: " + process_prefix + headEmbedProcRole.getName()+ " headEmbedProc: "+headEmbedProc + " creating...");
+                                atprocRef = new DefinitionRef(process_prefix + headEmbedProcRole.ConfigName + "_" + headEmbedProcRole.Name  , convertParamValues(headEmbedProc.Parameters));
+                                // create embed process
+                                
+                                this.createRoleProcessSpecWithMultipleLinked(headEmbedProcRole, linkedRoles, attach.LeftName, port, comp.Name);
+                                Spec.DefinitionDatabase.TryGetValue(process_prefix + headEmbedProcRole.getName(), out atprocRef.Def);
+                                headprocRef = atprocRef;
+                            }
 
                         }
                     }
                     else
                     {
-                        if(current.next==null || current.next.operation != SysProcess.Operation.Embed)
+                        if(current.next!=null && current.next.operation == SysProcess.Operation.Embed)
+                        {
+                            // this is head of embeded processs
+                           
+                            headEmbedProcRole = conn.getRoleByName(current.Name);
+                            headEmbedProc = current;
+                        } else
+                        {
+                            // other process rather than embeded process
                             this.createRoleProcessSpec(role, null, attach.LeftName, port, comp.Name);
+                        }
+
+                        Console.WriteLine("     #create first sub process");
                         Spec.DefinitionDatabase.TryGetValue(process_prefix + current.Super + "_" + current.Name, out atprocRef.Def);
                         // first sub process
                         headprocRef = atprocRef;
@@ -440,6 +633,7 @@ namespace PAT.ADL.LTS.ADL_Parser
             {
                 assertionCSP = new ADLAssertionAmbiguosInterface(execProc);
                 assertionCSP.ComponentDatabase = Spec.ComponentDatabase;
+                assertionCSP.AttachmentDatabase = Spec.AttachmentDatabase;
             }
             else
                 throw new Exception("Unknown target process for assertion");
@@ -472,6 +666,7 @@ namespace PAT.ADL.LTS.ADL_Parser
             { 
                 assertionCSP = new ADLAssertionDecomposition(execProc);
                 assertionCSP.ComponentDatabase = Spec.ComponentDatabase;
+                assertionCSP.AttachmentDatabase = Spec.AttachmentDatabase;
             }
             else
                 throw new Exception("Unknown target process for assertion");

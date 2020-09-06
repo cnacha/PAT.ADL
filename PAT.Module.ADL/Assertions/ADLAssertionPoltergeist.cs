@@ -127,14 +127,14 @@ namespace PAT.ADL.Assertions
                 Console.WriteLine(toStringCounterExample(this.VerificationOutput.CounterExampleTrace));
 
                ///////////////////////////////////////////////////////// Code specific for this smell detection
-                if(current.Event.IndexOf("!")==-1 && current.Event.IndexOf("?") == -1 && current.Event.IndexOf("_")!=-1)
+                if(current.Event.IndexOf("!")==-1 && current.Event.IndexOf("?") == -1 && current.Event.IndexOf("_")!=-1 && current.Event.IndexOf("consumer_request") == -1)
                 {
                     // not channel event, it is component event
                     Console.WriteLine("comp event: "+current.Event);
                     String currentComponent = current.Event.Substring(0,current.Event.IndexOf("_"));
-                        
+
                     // check if the previous calling component and current component are not the same, also calling component has single interface 
-                    if (currentComponent != previousComponent && previousComponent != "" && this.IsSingleInterface(previousComponent))
+                    if (currentComponent != previousComponent && previousComponent != "")  //&& this.IsSingleInterface(previousComponent))
                     {
                         // add to dict for for component invoked
                         if (!componentInvokeByDict.ContainsKey(currentComponent))
@@ -157,17 +157,29 @@ namespace PAT.ADL.Assertions
                         }
 
                         // perform polstergeist checking
+                      //  Console.WriteLine("             ##### " + invokeCount[previousComponent] +" == "+ (ComponentDatabase.Count - 1));
+                        /*    if(invokeCount[previousComponent] >= ComponentDatabase.Count - 1)
+                           {
+                               Console.WriteLine("              Poltergeist Found ********* ");
+                               poltergeist = previousComponent;
+                               this.VerificationOutput.VerificationResult = VerificationResultType.INVALID;
+                               this.VerificationOutput.NoOfStates = Visited.Count;
+                               PrintComponentInvokeDict(componentInvokeByDict, invokeCount);
+                               return;
+                           }
+                            */
                         if (componentInvokeByDict[currentComponent].Count >= ComponentDatabase.Count-1)
-                        {
-                            // poltergeist found when a component is called by all other components
-                            Console.WriteLine("              Poltergeist Found ********* " );
-                            poltergeist = currentComponent;
-                            this.VerificationOutput.VerificationResult = VerificationResultType.INVALID;
-                            this.VerificationOutput.NoOfStates = Visited.Count;
-                            PrintComponentInvokeDict(componentInvokeByDict, invokeCount);
-                            return;
-                        }
-                                            
+                           {
+                               // poltergeist found when a component is called by all other components
+                               Console.WriteLine("              Poltergeist Found ********* " );
+                               poltergeist = currentComponent;
+                               this.VerificationOutput.VerificationResult = VerificationResultType.INVALID;
+                               this.VerificationOutput.NoOfStates = Visited.Count;
+                               PrintComponentInvokeDict(componentInvokeByDict, invokeCount);
+                               return;
+                           }
+                          
+
                     }
                     previousComponent = currentComponent ;
                 }
@@ -177,6 +189,32 @@ namespace PAT.ADL.Assertions
                 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
                 PrintComponentInvokeDict(componentInvokeByDict, invokeCount);
+                // check final result
+                
+                foreach(var comp in ComponentDatabase)
+                {
+                    String compName = comp.Key;
+                    int total = 0;
+                    foreach (var compInvoke in componentInvokeByDict)
+                    {
+                        if (compInvoke.Value.Contains(compName))
+                            total++;
+                    }
+                    Console.Write("         ### checking compname: " + compName +"  "+total);
+
+                    if(total >= ComponentDatabase.Count - 1)
+                    {
+                        // poltergeist found when a component is called by all other components
+                        Console.WriteLine("              Poltergeist Found ********* ");
+                        poltergeist = compName;
+                        this.VerificationOutput.VerificationResult = VerificationResultType.INVALID;
+                        this.VerificationOutput.NoOfStates = Visited.Count;
+                        PrintComponentInvokeDict(componentInvokeByDict, invokeCount);
+                        return;
+                    }
+
+
+                }
                 
 
                 depthList.Add(depth);

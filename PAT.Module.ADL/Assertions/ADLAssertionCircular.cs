@@ -100,15 +100,23 @@ namespace PAT.ADL.Assertions
                 }
 
                 this.VerificationOutput.CounterExampleTrace.Add(current);
-               
+
                 IEnumerable<ConfigurationBase> list = current.MakeOneMove();
                 this.VerificationOutput.Transitions += list.Count();
-                Console.Write("tracing event: " + current.Event + " " + current.GetID());
-                Console.WriteLine(toStringCounterExample(this.VerificationOutput.CounterExampleTrace)+"\n");
+                Console.WriteLine("tracing event: " + current.Event + " " + visitedStates.Contains(current.Event));
+                Console.WriteLine(toStringCounterExample(this.VerificationOutput.CounterExampleTrace) + "\n");
 
                 // track channel input for circular dependency
-                if (current.Event.IndexOf("!")!= -1 && visitedStates.Contains(current.Event) && !isProcessEventExist(visitedStates, current.Event.Substring(current.Event.LastIndexOf("_") + 1, (current.Event.IndexOf("!") - current.Event.LastIndexOf("_") - 1))))
+                if (current.Event.IndexOf("!") != -1 && visitedStates.Contains(current.Event)) {
+                    String connectorName = current.Event.Substring(0, current.Event.IndexOf("_"));
+                    Console.WriteLine(" #tracking " + current.Event + " connectorName " + connectorName + " isProcessExist" + isProcessEventExist(visitedStates, connectorName));
+                 }
+                Console.WriteLine();
+
+               // if (current.Event.IndexOf("!")!= -1 && visitedStates.Contains(current.Event) && !isProcessEventExist(visitedStates, current.Event.Substring(current.Event.LastIndexOf("_") + 1, (current.Event.IndexOf("!") - current.Event.LastIndexOf("_") - 1))))
+                if (current.Event.IndexOf("!") != -1 && visitedStates.Contains(current.Event) && !isProcessEventExist(visitedStates, current.Event.Substring(0, current.Event.IndexOf("_"))) )
                 {
+                  
                     Console.WriteLine("              circular happen *********");
                     this.VerificationOutput.VerificationResult = VerificationResultType.INVALID;
                     this.VerificationOutput.LoopIndex = visitedStates.IndexOf(current.Event);
@@ -116,6 +124,7 @@ namespace PAT.ADL.Assertions
                     
                     return;
                 }
+
 
                 // add event trace to the list
                 visitedStates.Add(current.Event);
@@ -165,7 +174,10 @@ namespace PAT.ADL.Assertions
         {
             foreach(var s in evtrace)
             {
-                if (s.IndexOf("process_" + connectorName) != -1)
+                /*  if (s.IndexOf("process_" + connectorName) != -1)
+                      return true;
+                      */
+                if (s.IndexOf("process") != -1 && s.IndexOf(connectorName)!=-1)
                     return true;
             }
             return false;

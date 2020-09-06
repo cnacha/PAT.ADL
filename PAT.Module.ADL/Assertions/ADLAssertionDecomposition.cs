@@ -16,6 +16,7 @@ namespace PAT.ADL.Assertions
         protected bool isNotTerminationTesting;
         private DefinitionRef Process;
         public Dictionary<string, Component> ComponentDatabase = null;
+        public Dictionary<string, Attachment> AttachmentDatabase { get; internal set; }
         private static int MAX_SEQUENCE_SINGLE_INTERFACE_INVOKE = 3;
 
         public ADLAssertionDecomposition(DefinitionRef processDef): base()
@@ -39,6 +40,9 @@ namespace PAT.ADL.Assertions
                 return Process.ToString();
             }
         }
+
+        
+
         public override string ToString()
         {
 
@@ -63,12 +67,25 @@ namespace PAT.ADL.Assertions
 
         private bool IsSingleInterface(string compName)
         {
+            Console.Write("###IsSingleInterface");
             ComponentDatabase.TryGetValue(compName, out Component comp);
-            if (comp.portList.Count == 1)
+            if (comp.portList.Count == 1 )
+            {/*
+                AttachmentDatabase.TryGetValue(comp.portList[0].Name, out Attachment attachment);
+               Boolean isSingleAttch =  attachment.isSingleInterface();
+                Console.WriteLine("     ### attached " + comp.portList[0].Name + " issingle#: " + isSingleAttch);
+                // find number of attachment
+                if (isSingleAttch)
+                    return true;
+                else
+                    return false;
+                    */
                 return true;
+            }
             else
                 return false;
         }
+        List<string> singleInterfaceInvokeSequence = new List<string>();
 
         public void DFSVerification()
         {
@@ -84,7 +101,7 @@ namespace PAT.ADL.Assertions
 
             List<int> depthList = new List<int>(1024);
             List<String> visitedStates = new List<String>();
-            List<string> singleInterfaceInvokeSequence = new List<string>();
+            
 
             do
             {
@@ -118,7 +135,7 @@ namespace PAT.ADL.Assertions
                 Console.Write("tracing event: " + current.Event + " " + current.GetID());
                 Console.WriteLine(toStringCounterExample(this.VerificationOutput.CounterExampleTrace)+"\n");
 
-                if (current.Event.IndexOf("!") == -1 && current.Event.IndexOf("?") == -1 && current.Event.IndexOf("_") != -1)
+                if (current.Event.IndexOf("!") == -1 && current.Event.IndexOf("?") == -1 && current.Event.IndexOf("_") != -1 && current.Event.IndexOf("consumer_request") == -1)
                 {
                     // not channel event, it is component event
                     Console.WriteLine("comp event: " + current.Event);
@@ -314,7 +331,12 @@ namespace PAT.ADL.Assertions
                 }
                 else
                 {
-                    sb.AppendLine("The following trace leads to a deadlock situation.");
+                    sb.Append("The following trace leads to a functional decomposition situation.");
+                    foreach(String seq in singleInterfaceInvokeSequence)
+                    {
+                        sb.Append(seq + " -> ");
+                    }
+                    sb.AppendLine();
                 }
 
                 VerificationOutput.GetCounterxampleString(sb);

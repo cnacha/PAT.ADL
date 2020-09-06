@@ -34,6 +34,7 @@ namespace PAT.ADL.LTS
         public Dictionary<string, Configuration> ConfigurationDatabase = new Dictionary<string, Configuration>(16);
         public Dictionary<string, Connector> ConnectorDatabase = new Dictionary<string, Connector>();
         public Dictionary<string, Component> ComponentDatabase = new Dictionary<string, Component>();
+        public Dictionary<string, Attachment> AttachmentDatabase = new Dictionary<string, Attachment>();
         public Dictionary<string, DefinitionRef> ExecProcessDatabase = new Dictionary<string, DefinitionRef>();
         public Dictionary<string, List<string>> CompStateDatabase = new Dictionary<string, List<string>>();
 
@@ -71,7 +72,7 @@ namespace PAT.ADL.LTS
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.ToString());
+                System.Diagnostics.Debug.WriteLine(ex.ToString());
                 throw ex;
             }
             finally
@@ -87,7 +88,7 @@ namespace PAT.ADL.LTS
         /// <param name="option">option for LTL parsing, usually it is an empty string</param>
         protected virtual void ParseSpec(string spec, string options)
         {
-            Console.WriteLine("parsing spec... ");
+            System.Diagnostics.Debug.WriteLine("parsing spec... ");
 
             IsParsing = true;
 

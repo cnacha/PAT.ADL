@@ -44,6 +44,32 @@ namespace ADLParser.Classes
             }
 
         }
+        public Dictionary<string, int> countRole = new Dictionary<string, int>();
+
+        public int getCountEventAfter()
+        {
+            countRole = new Dictionary<string, int>();
+            int count = 1;
+            Console.Write(this.Name);
+            SysProcess nextEve = this.next;
+            
+            countRole.Add(this.Name, 1);
+            while (nextEve != null)
+            {
+                Console.Write("###"+nextEve.Name);
+                if (countRole.ContainsKey(nextEve.Name))
+                {
+                    countRole.TryGetValue(nextEve.Name, out int currentCount);
+                    countRole[nextEve.Name] =  currentCount + 1;
+                } else
+                    countRole.Add(nextEve.Name, 1);
+
+            
+                count++;
+                nextEve = nextEve.next;
+            }
+            return count;
+        }
 
         public override string ToString()
         {
